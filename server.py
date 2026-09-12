@@ -66,12 +66,6 @@ class DebugGame:
 
     def view(self):
         state = self.state
-        after_accept_actions = []
-        if state.phase == "response":
-            accepted = Play(state, Accept())
-            if accepted.phase == "turn" and accepted.turn == state.turn:
-                after_accept_actions = [type(move).__name__.lower() for move in MoveGenerator(accepted)
-                                        if isinstance(move, (Draw, Skip))]
         return {
             "version": self.version, "phase": state.phase, "turn": state.turn,
             "hands": [[code(card) for card in hand] for hand in state.hands],
@@ -82,7 +76,6 @@ class DebugGame:
             "top_status": self.top_status, "history": list(self.history),
             "move_explain": self.move_explain,
             "legal_moves": [move_view(i, move) for i, move in enumerate(MoveGenerator(state))],
-            "after_accept_actions": after_accept_actions,
         }
 
     def max_hand(self, count):
@@ -133,6 +126,9 @@ class DebugGame:
                 text += f" {requested - count} unpaid cards cancelled; no more cards available."
             add(who, text)
 
+        if before.phase == "response" and isinstance(move, (PlayCard, Draw)):
+            add(player, f"Accepted {card_name(before.top)}.")
+            self.top_status = "Accepted"
         if isinstance(move, PlayCard):
             suit = f"; continuing suit {SUIT_NAMES[move.chosen_suit]}" if move.chosen_suit else ""
             add(player, f"Declared {card_name(move.declared_card)} face down{suit}.")
@@ -148,8 +144,8 @@ class DebugGame:
             self.top_status = "Accepted"
             if not before.hands[player] and before.draw_penalty:
                 drawn(player, before.draw_penalty, " for the return penalty")
-            elif not before.hands[player] and before.skip_pending and after.winner is None:
-                add(player, "Empty hand skipped under the ace.")
+            elif before.skip_pending and any(before.hands):
+                add(player, "Skipped the turn under the ace.")
         elif isinstance(move, Draw):
             drawn(player, before.draw_penalty or 1, " for the penalty" if before.draw_penalty else "")
         else:

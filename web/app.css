@@ -80,9 +80,8 @@
 .game-panel .bp-play-summary { min-height: 1.2em; margin-bottom: 4px; font-size: 21px; }
 .game-play-reason { min-height: 3em; margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--bp-muted); }
 .game-play-reason[data-invalid="true"] { color: var(--bp-red); }
-.game-panel > .bp-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.game-panel > .bp-actions { grid-template-columns: 1fr; }
 .game-panel > .bp-actions .bp-button { min-height: 46px; padding: 8px; font-size: 14px; }
-.game-response-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .game-history { margin-top: 8px; }
 .game-history .bp-history__title { margin-bottom: 4px; }
 .game-history .bp-history__list { height: 27px; overflow-y: auto; }

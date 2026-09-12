@@ -64,7 +64,7 @@ class MoveExplanationContract(unittest.TestCase):
         if after_status is None:
             after_status = ("Awaiting response" if isinstance(move, PlayCard)
                             else "Revealed" if isinstance(move, Challenge)
-                            else "Accepted" if isinstance(move, Accept)
+                            else "Accepted" if isinstance(move, Accept) or state.phase == "response" and isinstance(move, Draw)
                             else before_status)
         before_public = snapshot(state, before_status)
         after_public = snapshot(after, after_status)
@@ -340,6 +340,35 @@ class MoveExplanationContract(unittest.TestCase):
         self.transition(state, Draw(), "draw", drawn=[0, 1], winner=0)
         state = position((), ("8D",), pile=("AH",), turn=1, provisional_winner=0, skip_pending=True)
         self.transition(state, Skip(), "skip", drawn=[0, 0], winner=0)
+
+    def test_direct_response_play_and_draw_include_implicit_acceptance(self):
+        for actor in (0, 1):
+            state = position(("JC", "QH", "8C"), ("JD", "QD", "8D"), turn=1 - actor)
+            pending = Play(state, PlayCard(state.hands[1 - actor][0], card("7H")))
+            actual = next(c for c in pending.hands[actor] if c.rank == "Q")
+            after, played = self.transition(pending, PlayCard(actual, card("QS"), "C"), "play")
+            self.assert_accept(played)
+            self.assert_card(played, "QS")
+            self.assertEqual(after.draw_penalty, 0)
+            self.assertEqual(after.phase, "response")
+            expected = [0, 0]
+            expected[actor] = 2
+            _, drawn = self.transition(pending, Draw(), "draw", drawn=expected)
+            self.assert_accept(drawn)
+        scarce = position(("JC", "8C"), ("JD", "8D"), deck_size=0)
+        pending = Play(scarce, PlayCard(card("JC"), card("7H")))
+        _, result = self.transition(pending, Draw(), "draw", drawn=[0, 1])
+        self.assertIn("unpaid", result["detail"])
+
+    def test_accept_ace_skips_nonempty_hand_without_drawing(self):
+        for actor in (0, 1):
+            state = position(("JC", "8C"), ("JD", "8D"), turn=1 - actor)
+            pending = Play(state, PlayCard(state.hands[1 - actor][0], card("AH")))
+            after, result = self.transition(pending, Accept(), "accept", drawn=[0, 0])
+            self.assert_accept(result)
+            self.assertEqual(after.turn, 1 - actor)
+            self.assertFalse(after.skip_pending)
+            self.assertIn("skipped", result["detail"])
 
     def test_default_perspective_is_player_zero(self):
         state = position(("8C",), ("8D",), turn=1)

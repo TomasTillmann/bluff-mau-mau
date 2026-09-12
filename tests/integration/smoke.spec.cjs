@@ -58,7 +58,7 @@ function samePositions(before, after) {
 async function coreFitsViewport(page) {
   const geometry = await page.evaluate(async () => {
     await Promise.all([...document.querySelectorAll('.game-fan')].flatMap(fan => fan.getAnimations({ subtree: true }).map(animation => animation.finished)));
-    const selectors = ['.game-seat', '.game-fan img', '.bp-declarations', '#play-truthful', '#play-card', '#move-draw', '.game-move-explain'];
+    const selectors = ['.game-seat', '.game-fan img', '.bp-declarations', '#play-truthful', '#play-card', '.game-move-explain'];
     return {
       height: innerHeight, width: innerWidth, scrollY,
       elements: selectors.flatMap(selector => [...document.querySelectorAll(selector)].map((element, index) => {
@@ -68,7 +68,7 @@ async function coreFitsViewport(page) {
     };
   });
   expect(geometry.scrollY, 'Core game controls must work without page scrolling').toBe(0);
-  expect(geometry.elements.length, 'Both five-card hands, grid, three actions and result must be measured').toBe(17);
+  expect(geometry.elements.length, 'Both five-card hands, grid, two actions and result must be measured').toBe(16);
   for (const box of geometry.elements) {
     expect(box.top, `${box.name} starts above the viewport`).toBeGreaterThanOrEqual(-0.5);
     expect(box.bottom, `${box.name} ends below the viewport`).toBeLessThanOrEqual(geometry.height + 0.5);
@@ -133,14 +133,15 @@ test('both players can call a bluff by clicking a two- or three-layer discard', 
     await expect(page.locator('#pile-challenge')).toBeEnabled();
     const responseLayout = await page.evaluate(() => ({
       height: innerHeight, scrollHeight: document.documentElement.scrollHeight, scrollY,
-      buttons: [...document.querySelectorAll('#move-accept, #move-challenge, #move-draw')].map(button => {
+      buttons: [...document.querySelectorAll('#play-card, #play-truthful')].map(button => {
         const rect = button.getBoundingClientRect();
         return { id: button.id, top: rect.top + scrollY, bottom: rect.bottom + scrollY, width: rect.width, height: rect.height };
       }),
     }));
     expect(responseLayout.scrollHeight, 'Response history must not extend the page').toBeLessThanOrEqual(responseLayout.height);
     expect(responseLayout.scrollY, 'Responding must not require page scrolling').toBe(0);
-    expect(responseLayout.buttons).toHaveLength(3);
+    expect(responseLayout.buttons).toHaveLength(2);
+    await expect(page.locator('#move-accept, #move-challenge, #move-draw, #move-skip')).toHaveCount(0);
     for (const box of responseLayout.buttons) {
       expect(box.top, `${box.id} starts above the viewport`).toBeGreaterThanOrEqual(0);
       expect(box.bottom, `${box.id} ends below the viewport`).toBeLessThanOrEqual(responseLayout.height);
@@ -182,7 +183,8 @@ for (const [width, height] of [[1272, 812], [1280, 720], [320, 900]]) {
     await page.locator('#suit-D').click();
     await expect(page.locator('#play-truthful')).toBeEnabled();
     await checkLayout();
-    for (const declaration of ['7S', 'QC']) {
+    await expect(page.locator('#declare-7S')).toBeDisabled();
+    for (const declaration of ['7C', 'QC']) {
       await page.locator(`#declare-${declaration}`).click();
       await checkLayout();
     }
@@ -249,4 +251,92 @@ test('reload clears play state, selections and finished debug presets', async ({
   await load(page, { count: 31 }, '/api/debug/max-hand');
   await expect(page.locator('.game-winner')).toBeVisible();
   await reloadFresh();
+});
+
+
+test('response selections stay local; playing, drawing and ace passes resolve once', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await load(page);
+  await pick(page, '10H');
+  await page.locator('#declare-AC').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  const pending = await (await page.request.get('/api/state')).json();
+  const positions = await panelPositions(page);
+  await pick(page, 'JC', 1);
+  await page.locator('#declare-QS').click();
+  await page.locator('#suit-H').click();
+  samePositions(positions, await panelPositions(page));
+  expect((await (await page.request.get('/api/state')).json()).version).toBe(pending.version);
+  await expect(page.locator('#pile-challenge')).toBeEnabled();
+  await expect(page.locator('#declare-9H')).toBeDisabled();
+  await page.locator('#play-card').click();
+  await ready(page);
+  const countered = await (await page.request.get('/api/state')).json();
+  expect([countered.phase, countered.turn, countered.skip_pending, countered.top]).toEqual(['response', 0, false, 'QS']);
+  expect(countered.version).toBe(pending.version + 1);
+  expect(countered.move_explain.detail).toContain('Accepted ace of clubs');
+  await pick(page, 'QS');
+  await page.locator('#suit-D').click();
+  await page.locator('#play-truthful').click();
+  await ready(page);
+  const beforeDraw = await (await page.request.get('/api/state')).json();
+  await page.locator('#pile-draw').click();
+  await ready(page);
+  const drawn = await (await page.request.get('/api/state')).json();
+  expect(drawn.version).toBe(beforeDraw.version + 1);
+  expect(drawn.hands[1]).toHaveLength(beforeDraw.hands[1].length + 1);
+  expect(drawn.move_explain.kind).toBe('draw');
+  expect(drawn.move_explain.detail).toContain('Accepted queen of spades');
+  await expect(page.locator('#pile-challenge')).toHaveCount(0);
+
+  await load(page);
+  await pick(page, '10H');
+  await page.locator('#declare-AC').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  const ace = await (await page.request.get('/api/state')).json();
+  await expect(page.locator('#pile-accept')).toHaveAttribute('title', 'Accept the ace and skip this turn');
+  await page.locator('#pile-accept').click();
+  await ready(page);
+  const skipped = await (await page.request.get('/api/state')).json();
+  expect(skipped.version).toBe(ace.version + 1);
+  expect([skipped.turn, skipped.skip_pending]).toEqual([0, false]);
+  expect(skipped.hands).toEqual(ace.hands);
+  expect(skipped.move_explain.detail).toContain('skipped');
+});
+
+test('the pile resolves starting aces and an empty-handed response', async ({ page }) => {
+  await load(page, { seed: 13 });
+  const opening = await (await page.request.get('/api/state')).json();
+  expect(opening.skip_pending).toBe(true);
+  await page.locator('#pile-skip').click();
+  await ready(page);
+  const passed = await (await page.request.get('/api/state')).json();
+  expect([passed.version, passed.turn, passed.skip_pending]).toEqual([opening.version + 1, 1, false]);
+  expect(passed.hands).toEqual(opening.hands);
+
+  await load(page, { count: 30 }, '/api/debug/max-hand');
+  await pick(page, '7H');
+  await page.locator('#declare-QS').click();
+  await page.locator('#suit-S').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  await pick(page, 'AS', 1);
+  await page.locator('#play-truthful').click();
+  await ready(page);
+  await pick(page, '8H');
+  await page.locator('#declare-QS').click();
+  await page.locator('#suit-S').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  const empty = await (await page.request.get('/api/state')).json();
+  expect(empty.hands[1]).toEqual([]);
+  await expect(page.locator('#pile-challenge')).toBeEnabled();
+  await expect(page.locator('#pile-accept')).toHaveAttribute('title', 'Accept declaration');
+  await page.locator('#pile-accept').click();
+  await ready(page);
+  const finished = await (await page.request.get('/api/state')).json();
+  expect([finished.version, finished.winner]).toEqual([empty.version + 1, 1]);
+  expect(finished.hands).toEqual(empty.hands);
 });

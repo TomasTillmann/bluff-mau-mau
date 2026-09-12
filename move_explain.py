@@ -23,9 +23,11 @@ def explain_move(before, after, perspective=0):
         count = drawn[player]
         return f"{names[player]} drew {count} card{'s' if count != 1 else ''}."
 
-    if before["phase"] == "turn" and after["phase"] == "response":
+    if after["phase"] == "response" and after["hand_counts"][actor] < before["hand_counts"][actor]:
         kind = "play"
         title = f"{names[actor]} declared {card_name(after['top'])}."
+        if before["phase"] == "response":
+            detail.append(f"Accepted {card_name(before['top'])} and played face down.")
         if after["chosen_suit"]:
             detail.append(f"Continue with {SUITS[after['chosen_suit']]}, if accepted.")
         if not after["hand_counts"][actor]:
@@ -41,15 +43,19 @@ def explain_move(before, after, perspective=0):
             recipient = 1 - actor if caught else actor
             requested = before["draw_penalty"] + 2
             detail.append(draw_text(recipient))
+        elif after["top_status"] == "Accepted" and drawn[actor] and before["hand_counts"][actor]:
+            kind = "draw"
+            recipient, requested = actor, before["draw_penalty"] or 1
+            title = draw_text(actor)
+            detail.append(f"Accepted {card_name(before['top'])}; the turn ended.")
         elif after["top_status"] == "Accepted":
             kind = "accept"
             title = f"{names[actor]} accepted {card_name(before['top'])}."
             if not before["hand_counts"][actor] and before["draw_penalty"]:
                 recipient, requested = actor, before["draw_penalty"]
                 detail.append(draw_text(actor))
-            elif (not before["hand_counts"][actor] and before["skip_pending"]
-                  and after["winner"] is None):
-                detail.append(f"{possessives[actor]} empty hand was skipped under the ace.")
+            elif before["skip_pending"] and any(before["hand_counts"]):
+                detail.append(f"{possessives[actor]} turn was skipped under the ace.")
         else:
             return None
     elif before["phase"] == "turn" and after["phase"] in ("turn", "finished"):

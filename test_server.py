@@ -51,41 +51,32 @@ class GameBridgeTests(unittest.TestCase):
                     self.assertEqual(game.state, Play(position, move))
                     self.assertEqual(result["version"], game.version)
 
-    def test_after_accept_actions_use_engine_legality_without_advancing_game(self):
-        recyclable = play(state(), "JC", "9H")
-        recyclable = replace(recyclable, deck=(),
-                             hands=(recyclable.hands[0], recyclable.hands[1] + recyclable.deck))
-        cases = [
-            (state(), []),
-            (play(state(), "JC", "9H"), ["draw"]),
-            (play(state(), "JC", "AH"), ["skip"]),
-            (play(state(), "JC", "7H"), ["draw"]),
-            (play(state(top="7S", draw_penalty=2), "JC", "KS"), ["draw"]),
-            (recyclable, ["draw"]),
-            (play(finish_first(), "7H", "7H"), []),
-            (play(finish_first(), "7H", "AH"), []),
-            (play(finish_first(), "7H", "9H"), []),
-            (play(finish_first(("7H",)), "7H", "7H"), []),
-            (Play(play(finish_first(), "7H", "9H"), Accept()), []),
-        ]
-        game = DebugGame()
-        for position, expected in cases:
-            with self.subTest(phase=position.phase, top=position.top,
-                              empty_responder=not position.hands[position.turn]):
-                game.state = position
-                version, history, top_status = game.version, list(game.history), game.top_status
-                view = game.view()
-                self.assertEqual(view["after_accept_actions"], expected)
-                self.assertEqual(game.state, position)
-                self.assertEqual((game.version, game.history, game.top_status),
-                                 (version, history, top_status))
-                if expected:
-                    accepted = Play(position, Accept())
-                    self.assertEqual((accepted.phase, accepted.turn, accepted.winner),
-                                     ("turn", position.turn, None))
-                    self.assertEqual(expected, [type(move).__name__.lower()
-                                              for move in MoveGenerator(accepted)
-                                              if isinstance(move, (Draw, Skip))])
+    def test_direct_responses_are_single_moves_with_public_history(self):
+        for move, expected_kind in ((PlayCard(card("10D"), card("QS"), "C"), "play"),
+                                    (Draw(), "draw"), (Accept(), "accept")):
+            game = DebugGame()
+            game.state = play(state(), "JC", "7H" if not isinstance(move, Accept) else "AH")
+            game.top_status = "Awaiting response"
+            game.history = []
+            before, version = game.state, game.version
+            view = game.view()
+            self.assertNotIn("after_accept_actions", view)
+            self.assertEqual(game.state, before)
+            result = self.apply(game, move)
+            self.assertEqual(game.version, version + 1)
+            self.assertEqual(game.state, Play(before, move))
+            self.assertEqual(result["move_explain"]["kind"], expected_kind)
+            self.assertIn("Accepted", result["history"][0]["text"])
+            self.assertNotIn("jack of clubs", json.dumps(result["history"]))
+            if isinstance(move, PlayCard):
+                self.assertEqual(result["top_status"], "Awaiting response")
+                self.assertNotIn("10 of diamonds", json.dumps(result["history"]))
+            else:
+                self.assertEqual(result["top_status"], "Accepted")
+            if isinstance(move, Accept):
+                self.assertEqual(before.hands, game.state.hands)
+                self.assertEqual(result["turn"], 1 - before.turn)
+                self.assertIn("Skipped", result["history"][-1]["text"])
 
     def test_public_history_and_top_status_only_reveal_challenged_card(self):
         game = DebugGame()
@@ -115,7 +106,7 @@ class GameBridgeTests(unittest.TestCase):
 
     def test_automatic_return_skip_winner_and_short_draw_are_logged(self):
         for move, expected in ((PlayCard(card("7H"), card("7H")), "Drew 2 cards for the return penalty."),
-                               (PlayCard(card("7H"), card("AH")), "Empty hand skipped under the ace.")):
+                               (PlayCard(card("7H"), card("AH")), "Skipped the turn under the ace.")):
             game = DebugGame()
             game.state = finish_first()
             self.apply(game, move)

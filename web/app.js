@@ -27,29 +27,36 @@ function hand(player) {
   const canSelect = state.turn === player && state.winner === null;
   const fan = cards.map((card, index) => {
     const position = cards.length === 1 ? 0 : (index / (cards.length - 1)) * 2 - 1;
-    return `<button id="hand-${player}-${card}" type="button" class="bp-card" style="--bp-fan-angle:${position * 7}deg;--bp-fan-drop:${position * position * 12}px" aria-label="${cardName(card)}${canSelect ? state.phase === 'response' ? ', accept declaration and select actual card' : ', select actual card' : ''}" aria-pressed="${canSelect && card === actual}" data-card="${card}" ${!canSelect || busy ? 'disabled' : ''}>${cardImage(card)}</button>`;
+    return `<button id="hand-${player}-${card}" type="button" class="bp-card" style="--bp-fan-angle:${position * 7}deg;--bp-fan-drop:${position * position * 12}px" aria-label="${cardName(card)}${canSelect ? ', select actual card' : ''}" aria-pressed="${canSelect && card === actual}" data-card="${card}" ${!canSelect || busy ? 'disabled' : ''}>${cardImage(card)}</button>`;
   }).join('');
   return `<section class="game-seat" aria-labelledby="player-${player}"><h2 id="player-${player}" class="bp-hand-label"><strong>${playerName(player)}</strong></h2>${cards.length ? `<div class="game-hand-scroll" data-scroll="hand-${player}" tabindex="0" role="region" aria-label="${playerName(player)} hand, ${pluralCards(cards.length)}"><div class="bp-hand game-fan" data-active="${canSelect}" style="--game-card-gaps:${Math.max(1, cards.length - 1)}">${fan}</div></div>` : `<p class="game-empty-hand">${state.winner === player ? 'Out — game won' : 'Empty hand'}</p>`}</section>`;
 }
 
-function turnActions() {
-  return state.phase === 'response' ? (state.after_accept_actions || []).map(type => ({ type })) : state.legal_moves.filter(move => ['draw', 'skip'].includes(move.type));
+function drawPileAction() {
+  // The pile also resolves passes when an ace or empty hand prevents drawing.
+  return ['draw', 'skip', 'accept'].map(type => state.legal_moves.find(move => move.type === type)).find(Boolean);
 }
 
 function actionLabel(type) {
-  const labels = { accept: 'Accept declaration', challenge: 'Challenge declaration', skip: 'Skip turn', draw: state.draw_penalty ? `Draw ${state.draw_penalty} and end turn` : 'Draw 1 and end turn' };
-  return `${state.phase === 'response' && ['draw', 'skip'].includes(type) ? 'Accept, then ' : ''}${labels[type]}`;
+  if (type === 'challenge') return 'Call bluff on the declaration';
+  if (type === 'skip') return 'Skip turn under the ace';
+  if (type === 'accept') {
+    if (state.skip_pending && state.hands.some(hand => hand.length)) return 'Accept the ace and skip this turn';
+    if (state.draw_penalty) return `Accept and draw ${pluralCards(state.draw_penalty)}`;
+    return 'Accept declaration';
+  }
+  return `${state.phase === 'response' ? 'Accept and draw' : 'Draw'} ${pluralCards(state.draw_penalty || 1)} and end turn`;
 }
 
 function pile(label, count, face = null, action = null) {
   const layers = Math.min(count, 3);
-  const actionName = action ? `${count ? '' : 'Recycle discards. '}${actionLabel(action.type)}` : '';
+  const actionName = action ? `${!count && action.type === 'draw' ? 'Recycle discards. ' : ''}${actionLabel(action.type)}` : '';
   const control = content => `<button id="pile-${action.type}" type="button" class="bp-card game-pile-action${count ? '' : ' game-pile-recycle'}" data-action="${action.type}" aria-label="${escapeHTML(actionName)}" title="${escapeHTML(actionName)}" ${busy ? 'disabled' : ''}>${content}</button>`;
   const cards = count ? Array.from({ length: layers }, (_, index) => {
     const top = index === layers - 1;
     if (top && action) return control(cardImage(face));
     return `<div class="bp-card${top && face ? '' : ' bp-card--back'}">${cardImage(top ? face : null, top ? face ? cardName(face) : 'Face-down cards' : '')}</div>`;
-  }).join('') : action ? control('<span>Recycle<br>and draw</span>') : 'Empty';
+  }).join('') : action ? control(action.type === 'draw' ? '<span>Recycle<br>and draw</span>' : '<span>Continue</span>') : 'Empty';
   return `<figure class="bp-pile"><div class="bp-pile__cards${count ? '' : ' game-pile-empty'}">${cards}</div><figcaption><span class="bp-sr-only">${label}: </span><span class="bp-pile__count">${count}</span></figcaption></figure>`;
 }
 
@@ -67,7 +74,7 @@ function moveExplain() {
 
 function table() {
   const faceUp = ['Starting card', 'Revealed'].includes(state.top_status);
-  return `<section class="bp-table game-table" aria-label="Card table">${hand(1)}<div class="bp-piles">${pile('Draw pile', state.deck_count, null, turnActions().find(move => move.type === 'draw'))}${pile('Discards', state.pile_count, faceUp ? state.top : null, state.legal_moves.find(move => move.type === 'challenge'))}<div class="bp-declared"><p class="bp-declared__title">${faceUp ? 'Top' : 'Declared'} ${cardMark(state.top)}</p></div></div><div class="bp-effects"><span>${effectsText()}</span></div>${state.winner !== null ? `<p class="game-winner">${playerName(state.winner)} wins.</p>` : state.provisional_winner !== null ? `<p class="game-pending-win">${playerName(state.provisional_winner)} is out for now. The return attempt is still in play.</p>` : ''}<div class="game-player-result">${hand(0)}${moveExplain()}</div></section>`;
+  return `<section class="bp-table game-table" aria-label="Card table">${hand(1)}<div class="bp-piles">${pile('Draw pile', state.deck_count, null, drawPileAction())}${pile('Discards', state.pile_count, faceUp ? state.top : null, state.legal_moves.find(move => move.type === 'challenge'))}<div class="bp-declared"><p class="bp-declared__title">${faceUp ? 'Top' : 'Declared'} ${cardMark(state.top)}</p></div></div><div class="bp-effects"><span>${effectsText()}</span></div>${state.winner !== null ? `<p class="game-winner">${playerName(state.winner)} wins.</p>` : state.provisional_winner !== null ? `<p class="game-pending-win">${playerName(state.provisional_winner)} is out for now. The return attempt is still in play.</p>` : ''}<div class="game-player-result">${hand(0)}${moveExplain()}</div></section>`;
 }
 
 function canDeclare(card) {
@@ -84,13 +91,13 @@ function finalPlay(declaration = declared) {
 
 function playReason() {
   if (state.winner !== null) return 'This game is finished. Start a new game to play again.';
-  if (state.phase === 'response') return 'Choosing a hand card or declaration accepts the last play.';
+  if (!state.hands[state.turn].length) return 'Click the discard to call bluff, or the draw pile to accept.';
   if (!actual) return 'Choose an actual card from the active player’s hand.';
   if (!declared) return 'Choose the card identity to declare.';
   const matching = state.legal_moves.filter(move => move.type === 'play' && move.actual === actual && move.declared === declared);
   if (!matching.length) {
-    if (state.skip_pending) return 'An ace is pending. Declare an ace to counter it, or skip.';
-    if (state.draw_penalty) return state.top === 'KS' ? 'Counter this king with a declared 7 of spades.' : 'Use a legal seven, or king of spades on 7 of spades.';
+    if (state.skip_pending) return 'Counter the ace with an ace or queen, or click the draw pile to pass.';
+    if (state.draw_penalty) return state.top === 'KS' ? 'Counter this king with 7 of spades or any queen.' : 'Use a seven, a queen, or king of spades on 7 of spades.';
     return `Match ${state.chosen_suit ? suits[state.chosen_suit] : `${suits[suit(state.top)]} or ${rankNames[rank(state.top)] || rank(state.top)}`}, or declare a queen.`;
   }
   if (rank(declared) === 'Q' && !chosenSuit) return 'Choose the continuing suit before playing the queen.';
@@ -106,10 +113,6 @@ function declarationEffect() {
   return 'No special effect if accepted.';
 }
 
-function actionButton(move) {
-  return `<button id="move-${move.type}" type="button" class="bp-button bp-button--${move.type === 'accept' ? 'primary' : 'secondary'} bp-button--wide" data-action="${move.type}" ${busy ? 'disabled' : ''} aria-label="${move.type === 'challenge' ? 'Call bluff on the declaration' : actionLabel(move.type)}">${move.type === 'accept' ? 'Accept' : move.type === 'challenge' ? 'Call bluff' : actionLabel(move.type).replace(/^Accept, then /, '')}</button>`;
-}
-
 function panel() {
   const move = finalPlay();
   const truthfulMove = finalPlay(actual);
@@ -117,18 +120,17 @@ function panel() {
   const reason = playReason();
   const responding = state.phase === 'response';
   const title = state.winner !== null ? `${playerName(state.winner)} wins` : `${playerName(state.turn)} ${responding ? 'to respond' : 'to act'}`;
-  const responseMoves = state.legal_moves.filter(item => ['accept', 'challenge'].includes(item.type));
   return `<aside class="bp-action-panel game-panel" aria-labelledby="actor">
     <h2 id="actor" class="bp-action-panel__title" tabindex="-1">${title}</h2>
     <div class="game-selection">
-      <div class="game-actual"><h3 class="bp-field__title">Actual card</h3>${actual && state.phase === 'turn' ? `<div class="bp-actual"><div class="bp-card bp-card--mini">${cardImage(actual, cardName(actual))}</div><p class="bp-actual__name">${cardName(actual)}</p></div>` : '<div class="bp-actual"><p class="game-actual-empty">Choose from your hand</p></div>'}</div>
+      <div class="game-actual"><h3 class="bp-field__title">Actual card</h3>${actual ? `<div class="bp-actual"><div class="bp-card bp-card--mini">${cardImage(actual, cardName(actual))}</div><p class="bp-actual__name">${cardName(actual)}</p></div>` : '<div class="bp-actual"><p class="game-actual-empty">Choose from your hand</p></div>'}</div>
       <div class="game-queen">${needsSuit ? `<h3 class="bp-field__title" id="suit-label">Continue with</h3><div class="game-suits" role="group" aria-labelledby="suit-label">${Object.entries(suits).map(([code, name]) => `<button id="suit-${code}" type="button" class="game-suit" data-suit="${code}" aria-pressed="${chosenSuit === code}" ${busy ? 'disabled' : ''}>${suitMark(code)}<span class="bp-sr-only">${name[0].toUpperCase() + name.slice(1)}</span></button>`).join('')}</div>` : ''}</div>
     </div>
     ${declarations()}
     <button id="play-truthful" type="button" class="bp-button bp-button--secondary bp-button--wide game-truthful" ${truthfulMove ? `data-move="${truthfulMove.id}"` : ''} ${!truthfulMove || busy ? 'disabled' : ''}>Play ${actual ? `${cardMark(actual)} ` : ''}as itself</button>
-    <p class="bp-play-summary">${actual && declared && state.phase === 'turn' ? `Play ${cardMark(actual)} as ${cardMark(declared)}` : 'Choose your declaration'}</p>
-    <p id="play-reason" class="game-play-reason" data-invalid="${state.phase === 'turn' && !!declared && !!reason}">${escapeHTML(reason || declarationEffect())}</p>
-    <div class="bp-actions">${responseMoves.length ? `<div class="bp-actions game-response-actions">${responseMoves.map(actionButton).join('')}</div>` : `<button id="play-card" type="button" class="bp-button bp-button--primary bp-button--wide" ${move ? `data-move="${move.id}"` : ''} ${reason ? 'aria-describedby="play-reason"' : ''} ${!move || busy ? 'disabled' : ''}>Play face down</button>`}${turnActions().map(actionButton).join('')}</div>
+    <p class="bp-play-summary">${actual && declared ? `Play ${cardMark(actual)} as ${cardMark(declared)}` : 'Choose your declaration'}</p>
+    <p id="play-reason" class="game-play-reason" data-invalid="${!!declared && !!reason}">${escapeHTML(reason || declarationEffect())}</p>
+    <div class="bp-actions"><button id="play-card" type="button" class="bp-button bp-button--primary bp-button--wide" ${move ? `data-move="${move.id}"` : ''} ${reason ? 'aria-describedby="play-reason"' : ''} ${!move || busy ? 'disabled' : ''}>Play</button></div>
     <section class="bp-history game-history" aria-labelledby="history-title"><h3 id="history-title" class="bp-history__title">Recent moves</h3>${state.history.length ? `<ol class="bp-history__list" reversed tabindex="0" aria-label="Recent moves">${state.history.slice(-6).reverse().map(item => `<li class="bp-history__row"><span class="bp-history__player">${item.player === null ? 'Table' : playerName(item.player)}</span><span>${escapeHTML(item.text)}</span></li>`).join('')}</ol>` : '<p class="game-history-empty">The cards are dealt. Make the first move.</p>'}</section>
   </aside>`;
 }
@@ -160,7 +162,7 @@ function receive(next) {
   actual = null;
   declared = null;
   chosenSuit = null;
-  announcement.textContent = state.move_explain ? `${state.move_explain.title} ${state.move_explain.detail}` : state.winner !== null ? `${playerName(state.winner)} wins.` : `${playerName(state.turn)} ${state.phase === 'response' ? 'must accept or challenge' : 'to act'}. ${effectsText()}.`;
+  announcement.textContent = state.move_explain ? `${state.move_explain.title} ${state.move_explain.detail}` : state.winner !== null ? `${playerName(state.winner)} wins.` : `${playerName(state.turn)} ${state.phase === 'response' ? 'can respond' : 'to act'}. ${effectsText()}.`;
 }
 
 function select(intent) {
@@ -169,6 +171,7 @@ function select(intent) {
     actual = intent.card;
   }
   else if (intent.declared) {
+    if (!canDeclare(intent.declared)) return false;
     declared = intent.declared;
     chosenSuit = null;
   } else if (intent.suit) chosenSuit = intent.suit;
@@ -177,10 +180,9 @@ function select(intent) {
   return true;
 }
 
-async function request(path, body, intent = null) {
+async function request(path, body) {
   if (busy) return;
   const focused = document.activeElement.id;
-  const actor = state?.turn;
   busy = true;
   const error = document.querySelector('#error');
   error.hidden = true;
@@ -189,23 +191,12 @@ async function request(path, body, intent = null) {
   render();
   announcement.textContent = body ? 'Updating the table…' : 'Loading the table…';
   let success = false;
-  let selected = false;
-  async function update(path, body) {
+  try {
     const response = await fetch(path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
     const next = await response.json();
     if (!response.ok) throw new Error(next.error || 'The table could not be updated.');
     receive(next);
     success = true;
-  }
-  try {
-    await update(path, body);
-    // Accept can resolve a return penalty, skip an empty hand, or finish the game.
-    if (intent && state.phase === 'turn' && state.turn === actor && state.winner === null) {
-      if (intent.action) {
-        const move = state.legal_moves.find(item => item.type === intent.action);
-        if (move) await update('/api/move', { version: state.version, move_id: move.id });
-      } else selected = select(intent);
-    }
   } catch (failure) {
     error.innerHTML = `<span>${escapeHTML(failure.name === 'TimeoutError' ? 'The table took too long to respond. Refresh its state before trying again.' : failure.message)}</span><button id="retry" type="button" class="bp-button bp-button--secondary bp-button--compact">Refresh table</button>`;
     error.hidden = false;
@@ -214,7 +205,7 @@ async function request(path, body, intent = null) {
     busy = false;
     game.setAttribute('aria-busy', 'false');
     document.querySelector('#new-game').disabled = false;
-    render(success && !selected && (!!body || focused === 'retry'), focused);
+    render(success && (!!body || focused === 'retry'), focused);
     if (!state) document.querySelector('#retry')?.focus();
   }
 }
@@ -235,11 +226,7 @@ document.addEventListener('click', event => {
   if (intent.card && !state.hands[state.turn].includes(intent.card)) return;
   const move = state.legal_moves.find(item => item.type === intent.action);
   if (move) return void request('/api/move', { version: state.version, move_id: move.id });
-  if (state.phase === 'response') {
-    if (intent.action && !turnActions().some(item => item.type === intent.action)) return;
-    const accept = state.legal_moves.find(item => item.type === 'accept');
-    if (accept) return void request('/api/move', { version: state.version, move_id: accept.id }, { ...intent });
-  } else if (select(intent)) render();
+  if (select(intent)) render();
 });
 
 request('/api/new', {});

@@ -29,16 +29,18 @@ or disk; reloading any tab resets the shared debug game.
 
 Both hands stay visible in fixed seats. Make the active player's decisions,
 including playing any actual card as a legal declaration, selecting a queen's
-continuing suit, drawing, skipping, accepting, and challenging. Every declaration
-tile is selectable; the Play button explains unavailable combinations and sends
-only a move offered by the engine. Empty hands stay provisional until the engine
+continuing suit, drawing, passing, and challenging. Declaration tiles show rank
+and suit; unavailable declarations are dimmed and disabled. Play and Play as
+itself send only an exact move offered by the engine. Empty hands stay provisional until the engine
 confirms a winner. New game deals a fresh game with Player 1 (the bottom seat) starting. This iteration is a local debug
 table; hidden-hand play and multiplayer are not included.
 
 Click the draw stack to draw, or the facedown discard to challenge while a
-response is pending. Selecting a hand card or declaration, or choosing Draw/Skip,
-accepts the pending claim first. The next action uses the engine’s returned turn;
-forced returns and finished games stop the sequence. Hovering or scrolling never accepts.
+response is pending. Selecting cards, declarations, or suits leaves that response
+open. Submitting Play or Play as itself, or drawing from the stack, implicitly
+accepts the previous claim in one engine move. When an ace or empty hand prevents
+drawing, the draw stack resolves the pass or acceptance instead; its tooltip
+describes the action. An accepted ace skips automatically, without drawing.
 
 MoveExplain keeps the last public result directly below Player 1’s hand, always
 using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts

@@ -58,9 +58,9 @@ Use real headings appropriate to the specimen's hierarchy. Field titles can be h
 
 The shared five-card fan remains a simple specimen. Each playable hand is one continuous shallow arc, with no card groups. CSS container-based spacing overlaps the complete card artwork, exposing each upper-left rank and suit; spacing compresses from 42% to 26% of card width before the rail scrolls. The rail reserves space for rotated edges and native focus scrolling (32px desktop, 24px mobile). Hand buttons keep their fixed arc positions; only their pointer-inert images lift over 260ms with the shared easing. Selection preserves existing hand elements and stacking so neighboring indices remain visible. Keyboard focus can raise a card for visibility, and reduced motion removes transitions. Table height is independent of the action panel so queen controls cannot move the hand.
 
-Player 2 stays above Player 1 in every phase. Both hands remain face up in this debug iteration. Queen continuation choices and Accept, Challenge, and Skip actions reuse the existing button and field styles. Every declaration remains selectable; only submission is governed by the engine’s exact legal-move list.
+Player 2 stays above Player 1 in every phase. Both hands remain face up in this debug iteration. Queen continuation choices reuse the existing button and field styles. The only panel submission buttons are Play and Play as itself; both remain present in turn and response phases. Unavailable declarations are dimmed and disabled using the engine’s legal-move list.
 
-In the playable table, the wordmark is visually hidden behind the club mark and the table footer is omitted. Piles show counts with screen-reader names; the declaration plaque shows only its card identity, with no status or continuing-suit text. A pile becomes a native button only when its action is available. Its top image lifts/tilts over 260ms, with a stationary hit area. The discard animates only when it can challenge. Selecting a hand card/declaration or taking Draw/Skip accepts a pending claim before the intended action; hover and navigation do not.
+In the playable table, the wordmark is visually hidden behind the club mark and the table footer is omitted. Piles show counts with screen-reader names; the declaration plaque shows only its card identity, with no status or continuing-suit text. A pile becomes a native button only when its action is available. Its top image lifts/tilts over 260ms, with a stationary hit area. The discard animates only when it can challenge. Selection leaves a pending claim open. Playing or drawing implicitly accepts it in one engine move. The draw pile resolves a pass when an ace or empty hand prevents drawing, with an action-specific accessible name and tooltip.
 
 MoveExplain is a title-and-detail strip directly below Player 1’s hand,
 on the green table with paper title text and muted table detail text. Reserve
@@ -73,8 +73,7 @@ reloads, new games, and debug presets clear it.
 The compact game panel shares one stable row between the actual-card preview
 and queen continuation controls. Declaration and suit buttons retain 44px targets.
 One feedback paragraph shows the unavailable-play reason or the ready declaration’s
-effect. Play/Draw share a row on desktop; Accept/Call bluff occupy the same action
-area during responses. Recent moves use a bounded, keyboard-scrollable row. Core
+effect. Play and Play as itself retain the same positions during responses. Recent moves use a bounded, keyboard-scrollable row. Core
 hands, grid, actions, and MoveExplain fit a 1280×720 desktop viewport without page
 scrolling. Mobile keeps readable controls and allows page/grid scrolling.
 
