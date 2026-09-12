@@ -1,274 +1,70 @@
-# Bluff Mau-Mau engine
+# Bluff Mau-Mau
 
-Python 3.10+, standard library only. The game follows [RULES.md](RULES.md).
+The backend, move generator, baseline bots, match runner, and persistent arena are
+implemented in **Rust**, under [`src-rust/`](src-rust/). The existing UI and card
+assets are unchanged. [RULES.md](RULES.md) remains authoritative.
 
-```python
-from bluff_mau_mau import Accept, Challenge, MoveGenerator, NewGame, Play, PlayCard
+## Build and play
 
-state = NewGame(seed=42, dealer=0)
-moves = MoveGenerator(state)
-move = next(move for move in moves if isinstance(move, PlayCard))
-pending = Play(state, move)
-assert MoveGenerator(pending)[:2] == [Accept(), Challenge()]
-next_state = Play(pending, Accept())
-assert state == NewGame(seed=42, dealer=0)  # The input was not modified.
-```
-
-## Playable debug table
+Install Rust, then run from this repository:
 
 ```sh
+cargo build --release --manifest-path src-rust/Cargo.toml
 git submodule update --init free-playing-cards
-python3 -B server.py
+./src-rust/target/release/server
 ```
 
-Open <http://127.0.0.1:8767/> in Chrome. Use `--port NUMBER` to choose another
-local port. The server uses only Python's standard library and holds one shared
-game only in memory. Every page load or reload replaces it with a fresh deal,
-clearing moves, selections, and history. No game data is saved to browser storage
-or disk; reloading any tab resets the shared debug game.
+Open <http://127.0.0.1:8767/>. Use `server --port NUMBER` for another local port.
+The server serves the original `web/`, `design-system/`, and `free-playing-cards/`
+files and preserves their HTTP API. No Python is required to build, test, or run
+the Rust backend. A fresh Rust installation may require `source "$HOME/.cargo/env"`
+in the current shell.
 
-Both hands stay visible in fixed seats. Make the active player's decisions,
-including playing any actual card as a legal declaration, selecting a queen's
-continuing suit, drawing, accepting, and challenging. Declaration tiles show rank
-and suit; unavailable declarations are dimmed and disabled. Play and Play as
-itself send only an exact move offered by the engine. Empty hands stay provisional until the engine
-confirms a winner. New game deals a fresh game with Player 1 (the bottom seat) starting. This iteration is a local debug
-table; hidden-hand play and multiplayer are not included.
+## Run the bots
 
-Click the draw stack to draw, or the facedown discard to challenge while a
-response is pending. Selecting cards, declarations, or suits leaves that response
-open. Submitting Play or Play as itself, or drawing from the stack, implicitly
-accepts the previous claim in one engine move. Accept declaration also accepts
-explicitly; accepting a played ace skips automatically, without drawing.
-Starting cards have no forced effect: use normal matching (or any declaration
-on a starting queen), or draw one. Starting sevens and K♠ contribute only when
-the first play starts a draw penalty.
+```sh
+./src-rust/target/release/baseline --deals 100
+./src-rust/target/release/arena --rounds 50 --workers 8
+```
 
-MoveExplain keeps the last public result directly below Player 1’s hand, always
-using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts
-come from actual hand-count changes, including shortages and recycled cards.
-The result survives selections and failed moves; a reload, new game, or debug
-preset clears it. Hidden card identities are never used in its explanations.
+The arena includes all **1,333** baseline configurations. Fifty rounds produce
+**66,600 games**, approximately 100 per bot, against a sampled set of opponents.
+A complete everyone-against-everyone cycle takes **1,333 rounds** and gives every
+pair two games with exchanged seats. Thirty games per pair requires **19,995
+rounds**.
 
-Integration checks cover 30 playable cards and the 31-card finished maximum.
-A discard must always remain, so 32 cards cannot fit in one hand.
-The 31-card fixture uses a real engine draw that confirms the empty opponent’s win.
+Each run creates `runs/<date-and-time>-rust-arena/` with `arena.sqlite3` and
+`leaderboard.csv`. Ratings begin at **1000, K=20**. The leaderboard ranks by
+`(wins + draws/2) / games`, followed by games, wins, and name; Elo is shown alongside
+W/D/L. The 1,000-decision cutoff counts as an arena draw.
 
-The shared visual components remain in `design-system/`; open
-<http://127.0.0.1:8767/design-system/index.html> for the component study. The supplied
-card deck and its CC0 license are preserved in `free-playing-cards/`.
-Run `python3 -B -m unittest test_move_explain test_server` for explanation,
-bridge, and HTTP boundary checks. The blind MoveExplain test author worked from
-the public contract, rules, and engine without access to the implementation.
-Run `node test_truthful_play.cjs` for the truthful-play shortcut checks.
-For the small Chrome sanity suite, run `npm --prefix tests/integration ci` once,
-then `npm --prefix tests/integration test`. It starts an isolated local server
-and checks pile hover/clicks, bluff calls for both players, stable panel positions,
-and maximum-hand access. See [tests/integration/AGENTS.md](tests/integration/AGENTS.md)
-for the deliberately lightweight testing scope.
+Stop with Ctrl-C, inspect, or continue:
 
-## API
+```sh
+./src-rust/target/release/arena --status runs/EXACT-DIRECTORY --top 30
+./src-rust/target/release/arena --resume runs/EXACT-DIRECTORY --workers 8
+./src-rust/target/release/arena --resume runs/EXACT-DIRECTORY --rounds 100
+```
 
-- `MoveGenerator(state) -> list[Move]`: all legal actions for `state.turn`, in
-  stable order. No duplicates, ranking, or bluff pruning. Returns `[]` after a win.
-- `Play(state, move) -> GameState`: applies one decision and returns an immutable
-  state. Invalid states or unavailable moves raise `ValueError`.
-- `NewGame(seed=0, dealer=0) -> GameState`: shuffles the 32 cards, deals five
-  alternately to each player starting with the non-dealer, reveals the next
-  card without activating its effect. Supply another seed for another deal.
-
-Use the provided concrete `GameState` and move classes. Unsupported or spoofed
-record types are rejected before comparing legal moves. Genuine immutable tuple
-subclasses, including named tuples, are accepted as card containers.
-
-Players are `0` and `1`. Construct cards with `Card(rank, suit)`: ranks are
-`"7", "8", "9", "10", "J", "Q", "K", "A"`; suits are
-`"H"` (hearts), `"D"` (diamonds), `"C"` (clubs), `"S"` (spades).
-Use concrete `Card` instances for card values; subclasses are unsupported.
-
-The move types are frozen dataclasses:
-
-| Move | Meaning |
-| --- | --- |
-| `PlayCard(actual_card, declared_card, chosen_suit=None)` | Play a card from the acting hand under a legal declaration. A declared queen requires one of the four suit codes, even when bluffing; other declarations require `None`. |
-| `Accept()` | Accept the latest declaration, immediately consuming an ace's skip. |
-| `Challenge()` | Reveal and challenge the latest declaration. |
-| `Draw()` | Take the pending draw penalty, or one card when there is none, and end the turn. |
-| `Skip()` | Consume an ace's skip effect and end the turn. |
-
-After `PlayCard`, the opponent acts in `"response"` phase. `Accept()` and
-`Challenge()` remain first in the legal list. A nonempty responder can also play
-or draw directly to implicitly accept the prior claim. Against a pending ace,
-only an ace may be played; explicit acceptance consumes the skip immediately.
-Queens cancel pending draw penalties, but cannot counter an ace skip. Forced effects on an empty hand
-are resolved during acceptance; see [clarification-rules.md](clarification-rules.md).
-
-## State and replay
-
-`GameState` contains these fields:
-
-| Fields | Meaning |
-| --- | --- |
-| `deck`, `pile`, `hands` | Tuples of actual cards. `deck[0]` is drawn next; `pile[-1]` is the newest discard. `hands` is a pair of tuples. Together they must contain each of the 32 cards exactly once. |
-| `turn`, `phase` | Player making the next decision, and `"turn"`, `"response"`, or `"finished"`. In a finished state, `turn` identifies the winner. |
-| `top`, `chosen_suit` | Effective declared/revealed top identity and a queen's continuing suit. A queen with `None` permits unrestricted declarations until the next play. |
-| `opening_card` | `True` from setup until the first played card, including intervening draws. The opening discard has no active effect; its two/four-card contribution is carried only when that first declaration is a seven or K♠. Defaults to `False` for manually constructed positions. |
-| `draw_penalty`, `skip_pending` | Accumulated draw count and ace effect. During a response these already record the latest declaration's contribution, but no effect is applied until resolution. |
-| `provisional_winner`, `winner` | Player with the earliest still-empty hand, and confirmed winner; otherwise `None`. Terminal states clear the provisional claim and pending effects. |
-| `rng_state` | Immutable state of a local `random.Random`, used and advanced when recycling actual discards. Defaults to the state from seed `0` for manually constructed positions. |
-
-All state needed for a transition lives in `GameState`. No global random state is
-used or changed. Replaying a state and move on the same Python version produces
-the same result. Cards and moves are immutable too. Full engine states contain
-hidden card identities; future player observations should expose only what that
-player is allowed to see.
+The round target is total. Each pair and its ratings commit atomically; restarts
+replay only uncommitted work. Old Python results remain readable with `--status`,
+but Rust deliberately refuses to continue a Python run or a run made with a
+different engine/compiler fingerprint.
 
 ## Verification
 
-Run from this directory:
-
 ```sh
-python3 -B -m unittest -v
+cargo test --release --manifest-path src-rust/Cargo.toml
+cargo clippy --manifest-path src-rust/Cargo.toml --all-targets -- -D warnings
+cargo run --release --manifest-path src-rust/Cargo.toml --example benchmark -- 120
 ```
 
-The three test modules cover the rule examples and thousands of parameterized
-cases, complete move enumeration, turn and victory transitions, challenges,
-recycling, deterministic replay, invalid inputs, and card conservation. Seeded
-action sequences exercise transitions without providing a gameplay bot.
+Rust tests use frozen outputs from the original Python implementation, including
+complete ordered move lists, state transitions, random state, all baseline
+configurations, complete matches, and the debug HTTP bridge. The arena has a
+separate suite authored without access to its Rust implementation.
 
-Independent adversarial audit findings and their resolution are recorded in
-[AUDIT.md](AUDIT.md).
-
-## Baseline engines
-
-The bots live in `src/engines/baseline/`; shared player observations and match
-facilities live in `src/engines/`. The trusted rules engine remains unchanged.
-All imports work from the repository root without installing dependencies.
-
-```python
-from random import Random
-from bluff_mau_mau import MoveGenerator, NewGame, Play
-from src.engines import new_knowledge, observe, advance_knowledge
-from src.engines.baseline import HonestFirst, MixedGreedy, RandomLegal, mixed_grid
-
-state = NewGame(seed=42)
-knowledge = new_knowledge(state.top)
-bot = MixedGreedy(bluff=10, no_truth_bluff=40, challenge=20)
-moves = tuple(MoveGenerator(state))
-move = bot(observe(state, knowledge), moves, Random(10000))
-next_state = Play(state, move)
-knowledge = advance_knowledge(state, move, next_state, knowledge)
-```
-
-Every bot instance has the same decision interface:
-`bot(observation, legal_moves, rng) -> Move`. Configuration is bound at
-construction. The common interface does not impose a strategy on other engines;
-the obvious-move checks live inside these baselines.
-
-| Name | Fallback after obvious-move checks |
-| --- | --- |
-| `RandomLegal[uniform]` | Uniform over the remaining legal choices. |
-| `HonestFirst[B0-N0-C0]` | Play truthfully if possible; otherwise draw/skip, or bluff when required to continue. Accept uncertain declarations. |
-| `MixedGreedy[B10-N40-C20]` | B% bluff when truth is available; N% bluff when truth is unavailable; C% challenge on uncertain responses. |
-
-MixedGreedy never voluntarily draws/skips when a truthful surviving play exists.
-When truth is unavailable, drawing/skipping is the alternative to bluffing.
-Forced wins, last chances, provable bluffs, and return-attempt restrictions precede
-these probabilities. The two greedy policies share simple card preferences and
-random tie breaking. A provable bluff can use either the bot's own hand or its
-personal knowledge of cards still in the discard pile.
-
-Each player knows their own actual discards and cards revealed to both players,
-including the starting card. Acceptance never proves a declaration. Recycling
-shuffles older discards into the draw pile and removes them from both known-pile
-sets; the top stays known only to players who already knew it. The observation
-never exposes hidden opponent cards, unknown discards, deck order, or RNG state.
-
-`mixed_grid()` enumerates all **1,331** configurations with B, N, C independently
-at 0, 10, ..., 100 percent, with each configuration encoded in its `.name`.
-Direct construction also permits integer percentages between the grid points.
-The full behavior/API specification is in [docs/baseline-engines.md](docs/baseline-engines.md).
-
-### Matches and grid evaluation
-
-```sh
-python3 -B -m src.engines.baseline --deals 100 --seed 0 --bot-seed 10000
-python3 -B -m src.engines.baseline --grid --deals 10 --seed 1000 --bot-seed 20000
-```
-
-The first command compares the three defaults in paired seats. The second
-compares every MixedGreedy configuration against the fixed RandomLegal and
-HonestFirst opponents in paired seats; it does not run every grid candidate
-against every other candidate. Grid evaluation can take substantially longer.
-JSON results use the full parameterized names and report wins, losses,
-truncations, mean decision count, bluff/challenge frequency, and challenge success.
-A cutoff is unfinished, never an in-game draw. Means include cutoffs; unobserved
-rates are `null`.
-
-For custom comparisons, import `run_match`, `round_robin`, and `evaluate_grid`
-from `src.engines.matches`. The runner follows `state.turn`, maintains each
-player's pile knowledge, and separates game randomness from each policy's RNG.
-A resumed `initial_state` may provide `initial_knowledge`; omitted knowledge is
-conservatively empty because reveal history cannot be reconstructed from a
-snapshot. Reuse deal seeds and bot seeds to reproduce a run. Keep final evaluation
-deals separate from tuning deals. Grid enumeration/evaluation does not select an
-optimal configuration automatically.
-
-### Independent tests
-
-New baseline tests live in `tests/baseline/` and run with the existing command:
-
-```sh
-python3 -B -m unittest discover -s tests -v
-python3 -B -m unittest -v
-```
-
-The baseline test authors received only the public contract, rules, and trusted
-card-game engine in isolated directories. They authored and froze their tests
-without reading or importing the old or new bot implementation. The integration
-run checks those tests against the code afterward; original game and web tests
-remain separate. Test provenance and audit evidence are recorded in
-[docs/baseline-verification.md](docs/baseline-verification.md).
-
-## Persistent arena
-
-Play all 1,333 baseline configurations against each other with parallel workers:
-
-```sh
-python3 -B -m src.engines.arena --rounds 50 --workers 8
-```
-
-This is 66,600 games, about 100 per bot. Each scheduled opponent is played twice
-with the same deal and exchanged seats. Opponents follow a seeded, shuffled circle
-schedule without repetitions until every opponent has been met. For a quick
-comparison of just the three default bots, 75 rounds gives each exactly 100 games:
-
-```sh
-python3 -B -m src.engines.arena --roster basic --rounds 75 --workers 4
-```
-
-Each run prints its directory under `runs/<date-and-time>-arena/`. It keeps an
-`arena.sqlite3` database and a full sorted `leaderboard.csv`. Ratings start at
-**1000, K=20**. The table ranks by `(wins + draws/2) / games`, then games and wins,
-then name; Elo is displayed alongside the W/D/L counts. A game reaching the
-1,000-decision limit is explicitly scored as an arena draw, not a rules-engine
-win or natural draw. Change that limit with `--max-decisions` on a new run.
-
-Stop with Ctrl-C, then continue or inspect the same directory:
-
-```sh
-python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --workers 8
-python3 -B -m src.engines.arena --status runs/EXACT-RUN-DIRECTORY --top 30
-python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --rounds 100
-```
-
-The round target is total, so the last command extends a 50-round run to 100.
-Worker count may change. Completed pairs and their rating updates survive a crash;
-uncommitted pairs replay with the original seeds. Elo is applied in schedule
-order, so worker timing and restarts do not change the result. Read-only status
-uses the database even if a forced kill left the CSV behind. Resume refuses a
-changed game/policy implementation or Python version to avoid mixing results.
-
-These are preliminary comparisons: roughly 100 games do not reliably distinguish
-all 1,333 configurations. See [docs/arena.md](docs/arena.md) for the scoring,
-scheduling, persistence, and Python API contract. Arena tests are in `tests/arena/`.
+See [`src-rust/README.md`](src-rust/README.md) for the Rust API and verification
+record. Original Python files remain as the unchanged historical reference;
+none are invoked by the Rust backend or Rust tests. The prior behavioral
+specifications remain in [`docs/`](docs/).
