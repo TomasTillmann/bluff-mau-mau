@@ -67,6 +67,7 @@ class GameState:
     provisional_winner: int | None = None
     winner: int | None = None
     rng_state: tuple = field(default_factory=lambda: Random(0).getstate(), repr=False)
+    opening_card: bool = False
 
 
 def _contribution(card: Card) -> int:
@@ -105,6 +106,11 @@ def _validate(state: GameState) -> None:
         raise ValueError("Invalid pending effect")
     if type(state.phase) is not str or state.phase not in ("turn", "response", "finished"):
         raise ValueError("Unknown decision phase")
+    if type(state.opening_card) is not bool or (state.opening_card and (
+            state.phase != "turn" or len(state.pile) != 1 or state.top != state.pile[-1]
+            or state.chosen_suit is not None or state.draw_penalty or state.skip_pending
+            or state.provisional_winner is not None or state.winner is not None)):
+        raise ValueError("An opening card must be the untouched starting discard with no pending effect")
     for player in (state.provisional_winner, state.winner):
         if player is not None and (
                 type(player) is not int or player not in (0, 1) or state.hands[player]):
@@ -155,7 +161,7 @@ def NewGame(seed: int = 0, dealer: int = 0) -> GameState:
     top = cards[10]
     return GameState(
         deck=tuple(cards[11:]), pile=(top,), hands=tuple(hands), turn=1 - dealer,
-        top=top, draw_penalty=_contribution(top), skip_pending=top.rank == "A",
+        top=top, opening_card=True,
         rng_state=rng.getstate(),
     )
 
@@ -223,7 +229,7 @@ def _draw(state: GameState, player: int, count: int) -> GameState:
 
 def _finish(state: GameState, player: int) -> GameState:
     return replace(state, turn=player, phase="finished", winner=player,
-                   provisional_winner=None, draw_penalty=0, skip_pending=False)
+                   provisional_winner=None, draw_penalty=0, skip_pending=False, opening_card=False)
 
 
 def Play(state: GameState, move: Move) -> GameState:
@@ -245,11 +251,13 @@ def Play(state: GameState, move: Move) -> GameState:
         claimant = state.provisional_winner
         if not hands[player] and claimant is None:
             claimant = player
+        contribution = _contribution(move.declared_card)
+        carried = _contribution(state.top) if state.opening_card else state.draw_penalty
         return replace(
             state, hands=tuple(hands), pile=state.pile + (move.actual_card,),
             turn=other, top=move.declared_card, chosen_suit=move.chosen_suit,
-            phase="response", draw_penalty=(0 if move.declared_card.rank == "Q" else
-                                            state.draw_penalty + _contribution(move.declared_card)),
+            phase="response", opening_card=False,
+            draw_penalty=carried + contribution if contribution else 0,
             skip_pending=move.declared_card.rank == "A", provisional_winner=claimant,
         )
     if isinstance(move, Challenge):

@@ -73,7 +73,7 @@ for the deliberately lightweight testing scope.
   state. Invalid states or unavailable moves raise `ValueError`.
 - `NewGame(seed=0, dealer=0) -> GameState`: shuffles the 32 cards, deals five
   alternately to each player starting with the non-dealer, reveals the next
-  card, and applies its starting effect. Supply another seed for another deal.
+  card without activating its effect. Supply another seed for another deal.
 
 Use the provided concrete `GameState` and move classes. Unsupported or spoofed
 record types are rejected before comparing legal moves. Genuine immutable tuple
@@ -110,6 +110,7 @@ are resolved during acceptance; see [clarification-rules.md](clarification-rules
 | `deck`, `pile`, `hands` | Tuples of actual cards. `deck[0]` is drawn next; `pile[-1]` is the newest discard. `hands` is a pair of tuples. Together they must contain each of the 32 cards exactly once. |
 | `turn`, `phase` | Player making the next decision, and `"turn"`, `"response"`, or `"finished"`. In a finished state, `turn` identifies the winner. |
 | `top`, `chosen_suit` | Effective declared/revealed top identity and a queen's continuing suit. A queen with `None` permits unrestricted declarations until the next play. |
+| `opening_card` | `True` from setup until the first played card, including intervening draws. The opening discard has no active effect; its two/four-card contribution is carried only when that first declaration is a seven or K♠. Defaults to `False` for manually constructed positions. |
 | `draw_penalty`, `skip_pending` | Accumulated draw count and ace effect. During a response these already record the latest declaration's contribution, but no effect is applied until resolution. |
 | `provisional_winner`, `winner` | Player with the earliest still-empty hand, and confirmed winner; otherwise `None`. Terminal states clear the provisional claim and pending effects. |
 | `rng_state` | Immutable state of a local `random.Random`, used and advanced when recycling actual discards. Defaults to the state from seed `0` for manually constructed positions. |

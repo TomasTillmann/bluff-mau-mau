@@ -61,6 +61,7 @@ class DebugGame:
                 "hand_counts": [len(hand) for hand in state.hands],
                 "top": code(state.top), "chosen_suit": state.chosen_suit,
                 "draw_penalty": state.draw_penalty, "skip_pending": state.skip_pending,
+                "opening_card": state.opening_card,
                 "provisional_winner": state.provisional_winner, "winner": state.winner,
                 "top_status": self.top_status}
 
@@ -71,6 +72,7 @@ class DebugGame:
             "hands": [[code(card) for card in hand] for hand in state.hands],
             "top": code(state.top), "chosen_suit": state.chosen_suit,
             "draw_penalty": state.draw_penalty, "skip_pending": state.skip_pending,
+            "opening_card": state.opening_card,
             "provisional_winner": state.provisional_winner, "winner": state.winner,
             "deck_count": len(state.deck), "pile_count": len(state.pile),
             "top_status": self.top_status, "history": list(self.history),

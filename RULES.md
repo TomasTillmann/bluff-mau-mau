@@ -27,7 +27,9 @@ Players choose only from the legal moves available in the current game state. Th
 
 Draw penalties accumulate until someone takes them or plays a queen to cancel them. Taking the penalty clears it and ends that player’s turn. A skipped turn consumes the ace’s skip effect. In either case, the top card still determines the current suit/rank.
 
-If the **starting card is a queen**, there is **no suit or rank restriction until another card is played**. This freedom applies to **both players on their turns**, for as many turns as the queen remains on top. Its printed suit does not restrict play. Drawing ends the turn as usual but **does not remove this freedom**; drawing is allowed only while cards can be drawn. The next played card is accepted or challenged normally and determines how play continues. Starting aces, sevens and K♠ affect the first player normally.
+If the **starting card is a queen**, there is **no suit or rank restriction until another card is played**. This freedom applies to **both players on their turns**, for as many turns as the queen remains on top. Its printed suit does not restrict play. Drawing ends the turn as usual but **does not remove this freedom**; drawing is allowed only while cards can be drawn. The next played card is accepted or challenged normally and determines how play continues.
+
+Starting aces, sevens and K♠ have **no active skip or draw effect**. Until the first card is played, use normal suit/rank matching (or a queen), even after intervening draws: **A♥ → 8♥** and **7♠ → 8♠** are legal. An opening seven or K♠ still contributes its two or four cards **if the first played declaration is a legal seven or K♠**. For example, opening **7♥ → 7♠** creates a **four-card** penalty; a challenge loser draws **six**. Opening **7♠ → K♠** or **K♠ → 7♠** creates six. An ordinary reply or queen discards this opening contribution. This exception ends with the first played card and is never restored by recycling.
 
 ## Trusting or challenging
 

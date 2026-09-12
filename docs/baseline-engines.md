@@ -40,7 +40,10 @@ C innermost. Calling the grid again is repeatable.
 Observation is an immutable record with fields player:int, hand:tuple[Card,...],
 opponent_count:int, top:Card, chosen_suit:str|None, phase:str,
 draw_penalty:int, skip_pending:bool, provisional_winner:int|None,
-deck_count:int, pile_count:int, known_pile_cards:frozenset[Card].
+deck_count:int, pile_count:int, known_pile_cards:frozenset[Card], opening_card:bool.
+`opening_card` identifies the untouched starting discard, including after draws;
+its special effect is inactive, but an opening seven/K♠ contributes if the first
+play starts a draw penalty.
 No opponent hand, actual hidden pile, deck order, seed, or RNG state is exposed.
 The move list itself is generated for state.turn and exposes no hidden data.
 

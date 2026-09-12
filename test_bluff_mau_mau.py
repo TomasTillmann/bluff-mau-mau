@@ -59,7 +59,7 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(len(cards), 32)
         self.assertEqual(set(cards), set(CARDS))
 
-    def test_setup_is_seeded_and_initial_special_cards_apply(self):
+    def test_setup_is_seeded_and_opening_special_cards_are_inactive(self):
         seen = set()
         for seed in range(200):
             for dealer in (0, 1):
@@ -70,13 +70,75 @@ class RulesTests(unittest.TestCase):
                 self.assertEqual(s.turn, 1 - dealer)
                 self.assertEqual(s.top, s.pile[-1])
                 self.assertEqual(s.phase, "turn")
-                self.assertEqual(s.skip_pending, s.top.rank == "A")
-                self.assertEqual(s.draw_penalty, 2 if s.top.rank == "7" else
-                                 4 if s.top == card("KS") else 0)
+                self.assertTrue(s.opening_card)
+                self.assertFalse(s.skip_pending)
+                self.assertEqual(s.draw_penalty, 0)
                 self.assertIsNone(s.chosen_suit)
                 self.assert_conserved(s)
                 seen.add(s.top.rank)
         self.assertEqual(seen, {"7", "8", "9", "10", "J", "Q", "K", "A"})
+
+    def test_opening_specials_allow_normal_matching_without_forcing_the_effect(self):
+        for top in ("AH", "7H", "7S", "KS"):
+            initial = state(top=top, opening_card=True)
+            expected = {c for c in CARDS if c.suit == top[-1] or c.rank in (top[:-1], "Q")}
+            for current in (initial, mirror(initial)):
+                with self.subTest(top=top, player=current.turn):
+                    self.assertEqual(declarations(current), expected)
+                    self.assertIn(Draw(), MoveGenerator(current))
+                    self.assertNotIn(Skip(), MoveGenerator(current))
+                    self.assertNotIn(Accept(), MoveGenerator(current))
+                    self.assertNotIn(Challenge(), MoveGenerator(current))
+                    normal = Play(current, PlayCard(current.hands[current.turn][0], card("8" + top[-1])))
+                    self.assertEqual(normal.draw_penalty, 0)
+                    self.assertFalse(normal.skip_pending)
+                    self.assertFalse(normal.opening_card)
+                    drawn = Play(current, Draw())
+                    self.assertEqual(len(drawn.hands[current.turn]), len(current.hands[current.turn]) + 1)
+                    self.assertTrue(drawn.opening_card)
+                    self.assertEqual(declarations(drawn), expected)
+        ace = play(state(top="AH", opening_card=True), "JC", "AS")
+        self.assertTrue(ace.skip_pending)
+        self.assertEqual(declarations(ace), {c for c in CARDS if c.rank == "A"})
+        self.assertEqual(Play(ace, Accept()).turn, 0)
+
+    def test_opening_penalty_contribution_stacks_for_truthful_and_bluffed_replies(self):
+        for top, declared, amount in (("7H", "7S", 4), ("7S", "KS", 6), ("KS", "7S", 6)):
+            for actual in (declared, "JC"):
+                initial = state(top=top, hands=((actual, "8C"), ("10D", "AD")), opening_card=True)
+                for current in (initial, mirror(initial)):
+                    with self.subTest(top=top, actual=actual, player=current.turn):
+                        pending = play(current, actual, declared)
+                        self.assertEqual(pending.draw_penalty, amount)
+                        self.assertFalse(pending.opening_card)
+                        paid = Play(pending, Draw())
+                        self.assertEqual(len(paid.hands[pending.turn]), len(pending.hands[pending.turn]) + amount)
+                        self.assertEqual(paid.draw_penalty, 0)
+                        challenged = Play(pending, Challenge())
+                        loser = pending.turn if actual == declared else current.turn
+                        self.assertEqual(len(challenged.hands[loser]), len(pending.hands[loser]) + amount + 2)
+                        self.assertEqual(challenged.draw_penalty, 0)
+                        self.assert_conserved(challenged)
+
+    def test_opening_contribution_survives_draws_but_not_an_ordinary_reply(self):
+        initial = state(top="7H", opening_card=True)
+        drawn = Play(Play(initial, Draw()), Draw())
+        self.assertTrue(drawn.opening_card)
+        self.assertEqual(play(drawn, "JC", "7S").draw_penalty, 4)
+        ordinary = play(initial, "JC", "8H")
+        self.assertEqual(play(ordinary, "10D", "7H").draw_penalty, 2)
+        queen = play(initial, "JC", "QS", "H")
+        self.assertEqual(queen.draw_penalty, 0)
+        self.assertEqual(play(queen, "10D", "7H").draw_penalty, 2)
+
+    def test_recycled_single_discard_does_not_regain_opening_contribution(self):
+        initial = state(top="7H", hands=(("7S", "JC"), ("10D", "AD")), opening_card=True)
+        initial = replace(initial, deck=(), hands=(initial.hands[0], initial.hands[1] + initial.deck))
+        revealed = Play(play(initial, "7S"), Challenge())
+        self.assertEqual(revealed.pile, (card("7S"),))
+        self.assertFalse(revealed.opening_card)
+        self.assertEqual(revealed.draw_penalty, 0)
+        self.assertEqual(play(revealed, "JC", "7H").draw_penalty, 2)
 
     def test_every_actual_card_can_hide_each_legal_declaration(self):
         s = state()

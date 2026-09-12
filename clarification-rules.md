@@ -20,7 +20,8 @@ explicit in the function API.
 3. **Accepting an ace consumes its skip immediately.** To counter an ace, submit
    another ace directly in response phase. Explicit acceptance gives the turn
    back to the ace's player and confirms their victory if their hand is empty.
-   A starting ace still offers `Skip()` because it has no claim to accept.
+   A starting ace has no skip effect: normal matching declarations or a queen
+   are legal, and drawing takes one card.
    Accepting a seven or K♠ with cards in hand leaves the choice to counter or draw.
 
 4. **A queen cancels pending draw penalties, but cannot counter an ace.** Any
@@ -29,6 +30,14 @@ explicit in the function API.
    challenge, queens are legal again. If a queen is challenged, the loser draws
    only two cards. A queen does not return an already empty opponent; accepting
    it confirms that opponent's win.
+
+5. **Opening special cards are inactive, with a conditional penalty contribution.**
+   `opening_card` stays true until the first `PlayCard`, including across draws.
+   Opening aces, sevens and K♠ allow normal matching play without owing a skip or
+   penalty. If that first declaration is a seven or K♠, add the starting card’s
+   two/four-card contribution; otherwise discard it. Opening 7♥ → 7♠ owes four,
+   or six to a challenge loser. Later played specials follow normal effect rules;
+   a recycled one-card pile never restores opening status.
 
 Setup uses a seeded shuffle, deals alternately starting with the non-dealer, and
 treats the first draw-pile element as the next card. These are reproducible

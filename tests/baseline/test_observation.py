@@ -29,7 +29,7 @@ def empty_deck(s):
 
 FIELDS = ('player', 'hand', 'opponent_count', 'top', 'chosen_suit', 'phase',
           'draw_penalty', 'skip_pending', 'provisional_winner', 'deck_count',
-          'pile_count', 'known_pile_cards')
+          'pile_count', 'known_pile_cards', 'opening_card')
 
 
 def visible(obs):
@@ -37,6 +37,16 @@ def visible(obs):
 
 
 class ObservationContractTests(unittest.TestCase):
+    def test_opening_marker_survives_draws_and_clears_on_the_first_play(self):
+        initial = state(['7S', '8C'], ['AD'], ['7H'], opening_card=True)
+        self.assertTrue(observe(initial).opening_card)
+        drawn = Play(initial, Draw())
+        self.assertTrue(observe(drawn).opening_card)
+        pending = Play(drawn, PlayCard(card('AD'), card('7S')))
+        observation = observe(pending)
+        self.assertFalse(observation.opening_card)
+        self.assertEqual(observation.draw_penalty, 4)
+
     def test_starting_card_is_known_to_both_and_knowledge_is_immutable(self):
         start = card('9H')
         known = new_knowledge(start)
@@ -167,7 +177,7 @@ class ObservationContractTests(unittest.TestCase):
         s = state(['8D', '7C'], ['AS'], ['9H'], turn=1)
         obs = observe(s, new_knowledge(card('9H')))
         self.assertEqual(visible(obs), (1, s.hands[1], 2, card('9H'), None, 'turn',
-                                       0, False, None, len(s.deck), 1, frozenset({card('9H')})))
+                                       0, False, None, len(s.deck), 1, frozenset({card('9H')}), False))
         supplied = {card('9H')}
         values = dict(zip(FIELDS, visible(obs)))
         values['known_pile_cards'] = supplied

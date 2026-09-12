@@ -192,6 +192,7 @@ class PublicBoundaryTests(unittest.TestCase):
             "top": (None, True, 7, "9H", ("9", "H"), [], {}),
             "draw_penalty": (None, False, True, -2, -1, 1, 3, 2.0, "2", [], {}),
             "skip_pending": (None, 0, 1, "false", [], {}),
+            "opening_card": (None, 0, 1, "false", [], {}),
             "phase": (None, False, 0, "", "TURN", "pending", b"turn", [], {}, UserString("turn")),
             "provisional_winner": (False, True, -1, 2, 0.0, "0", [], {}),
             "winner": (False, True, -1, 2, 0.0, "0", [], {}),
@@ -267,6 +268,20 @@ class PublicBoundaryTests(unittest.TestCase):
         ):
             with self.subTest(top=top, penalty=penalty, skip=skip):
                 self.assert_rejected(state(top=top, draw_penalty=penalty, skip_pending=skip))
+
+    def test_opening_marker_requires_an_untouched_discard_without_effects(self):
+        invalid = (
+            state(top="AH", skip_pending=True, opening_card=True),
+            state(top="7H", draw_penalty=2, opening_card=True),
+            state(top="QS", chosen_suit="H", opening_card=True),
+            state(top="9H", pile=("8H",), opening_card=True),
+            state(top="9H", pile=("8H", "9H"), opening_card=True),
+            replace(play(state(), "JC", "9H"), opening_card=True),
+            replace(finish_first(), opening_card=True),
+        )
+        for bad in invalid:
+            with self.subTest(state=bad):
+                self.assert_rejected(bad)
 
     def test_revealed_special_cards_may_have_no_pending_effect(self):
         for top in ("7H", "7S", "KS", "AH", "AS", "QH"):

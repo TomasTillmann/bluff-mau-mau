@@ -25,6 +25,7 @@ class Observation:
     deck_count: int
     pile_count: int
     known_pile_cards: frozenset[Card] = frozenset()
+    opening_card: bool = False
 
     def __post_init__(self):
         object.__setattr__(self, "hand", tuple(self.hand))
@@ -81,5 +82,5 @@ def observe(state: GameState, knowledge: PileKnowledge = EMPTY_KNOWLEDGE) -> Obs
         draw_penalty=state.draw_penalty, skip_pending=state.skip_pending,
         provisional_winner=state.provisional_winner,
         deck_count=len(state.deck), pile_count=len(state.pile),
-        known_pile_cards=known[state.turn],
+        known_pile_cards=known[state.turn], opening_card=state.opening_card,
     )

@@ -147,7 +147,9 @@ class StatePropertyTests(unittest.TestCase):
             sampler = random.Random(seed + 1000)
             state = NewGame(seed, dealer=seed % 2)
             if seed == 0:
-                state = replace(state, deck=(), pile=state.deck + state.pile)
+                state = replace(state, deck=(), pile=state.deck + state.pile, opening_card=False)
+            elif seed == 1:
+                state = position(Card("A", "H"), skip=True)
             for step in range(250):
                 with self.subTest(seed=seed, step=step):
                     before = pickle.dumps(state)
@@ -157,7 +159,7 @@ class StatePropertyTests(unittest.TestCase):
                         break
                     self.assertTrue(moves)
                     self.assertEqual(len(moves), len(set(moves)))
-                    # Skip now exists only on a starting ace: cover that rare branch explicitly.
+                    # Skip is retained for externally supplied pending-ace turns.
                     move = Skip() if step == 0 and Skip() in moves else sampler.choice(moves)
                     if seed == 0 and step == 0:
                         move = Draw()  # Exercise recycling without relying on random frequency.

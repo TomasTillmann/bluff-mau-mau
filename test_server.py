@@ -32,7 +32,7 @@ class GameBridgeTests(unittest.TestCase):
             with self.subTest(phase=position.phase, top=position.top):
                 self.assertEqual(view["hands"], [[c.rank + c.suit for c in hand] for hand in position.hands])
                 self.assertEqual(view["top"], position.top.rank + position.top.suit)
-                for field in ("phase", "turn", "chosen_suit", "draw_penalty", "skip_pending",
+                for field in ("phase", "turn", "chosen_suit", "draw_penalty", "skip_pending", "opening_card",
                               "provisional_winner", "winner"):
                     self.assertEqual(view[field], getattr(position, field))
                 self.assertEqual((view["deck_count"], view["pile_count"]), (len(position.deck), len(position.pile)))
@@ -50,6 +50,30 @@ class GameBridgeTests(unittest.TestCase):
                     result = game.move(game.version, projected["id"])
                     self.assertEqual(game.state, Play(position, move))
                     self.assertEqual(result["version"], game.version)
+
+    def test_opening_effects_and_stacked_challenge_counts_are_public(self):
+        for top in ("AH", "7H", "KS"):
+            game = DebugGame()
+            game.state = state(top=top, opening_card=True)
+            self.assertTrue(game.view()["opening_card"])
+            self.assertTrue(game.public_snapshot()["opening_card"])
+            result = self.apply(game, Draw())
+            self.assertTrue(result["opening_card"])
+            self.assertEqual(result["draw_penalty"], 0)
+            self.assertFalse(result["skip_pending"])
+            self.assertEqual(result["move_explain"]["drawn"], [1, 0])
+            self.assertNotIn("unpaid", result["move_explain"]["detail"])
+        for actual in ("7S", "JC"):
+            game = DebugGame()
+            game.state = state(top="7H", hands=((actual, "8C"), ("10D", "AD")), opening_card=True)
+            pending = self.apply(game, PlayCard(card(actual), card("7S")))
+            self.assertFalse(pending["opening_card"])
+            self.assertFalse(game.public_snapshot()["opening_card"])
+            self.assertEqual(pending["draw_penalty"], 4)
+            challenged = self.apply(game, Challenge())
+            expected = [0, 6] if actual == "7S" else [6, 0]
+            self.assertEqual(challenged["move_explain"]["drawn"], expected)
+            self.assertIn("Drew 6 cards", challenged["history"][-1]["text"])
 
     def test_direct_responses_are_single_moves_with_public_history(self):
         for move, expected_kind in ((PlayCard(card("10D"), card("QS"), "C"), "play"),
