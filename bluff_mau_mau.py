@@ -162,11 +162,11 @@ def NewGame(seed: int = 0, dealer: int = 0) -> GameState:
 
 def _declarations(state: GameState) -> tuple[Card, ...]:
     if state.skip_pending:
-        return tuple(card for card in CARDS if card.rank == "A")
+        return tuple(card for card in CARDS if card.rank in ("A", "Q"))
     if state.draw_penalty:
         if state.top == Card("K", "S"):
-            return (Card("7", "S"),)
-        return tuple(card for card in CARDS if card.rank == "7"
+            return tuple(card for card in CARDS if card.rank == "Q" or card == Card("7", "S"))
+        return tuple(card for card in CARDS if card.rank in ("7", "Q")
                      or (state.top == Card("7", "S") and card == Card("K", "S")))
     if state.top.rank == "Q" and state.chosen_suit is None:
         return CARDS
@@ -180,11 +180,12 @@ def MoveGenerator(state: GameState) -> list[Move]:
     _validate(state)
     if state.winner is not None:
         return []
-    if state.phase == "response":
-        return [Accept(), Challenge()]
-    moves: list[Move] = []
+    moves: list[Move] = [Accept(), Challenge()] if state.phase == "response" else []
+    if not state.hands[state.turn]:
+        return moves
     if state.skip_pending:
-        moves.append(Skip())
+        if state.phase == "turn":
+            moves.append(Skip())
     elif state.deck or len(state.pile) > 1:
         moves.append(Draw())
     declarations = _declarations(state)
@@ -247,7 +248,8 @@ def Play(state: GameState, move: Move) -> GameState:
         return replace(
             state, hands=tuple(hands), pile=state.pile + (move.actual_card,),
             turn=other, top=move.declared_card, chosen_suit=move.chosen_suit,
-            phase="response", draw_penalty=state.draw_penalty + _contribution(move.declared_card),
+            phase="response", draw_penalty=(0 if move.declared_card.rank == "Q" else
+                                            state.draw_penalty + _contribution(move.declared_card)),
             skip_pending=move.declared_card.rank == "A", provisional_winner=claimant,
         )
     if isinstance(move, Challenge):
@@ -258,18 +260,19 @@ def Play(state: GameState, move: Move) -> GameState:
         return _finish(result, winner) if not result.hands[winner] else result
     if isinstance(move, Accept):
         result = replace(state, phase="turn")
+        if state.skip_pending and any(state.hands):
+            result = replace(result, skip_pending=False, turn=other)
+            return _finish(result, other) if not result.hands[other] else result
         if state.hands[player]:
             return result
         if state.draw_penalty:
             result = _draw(result, player, state.draw_penalty)
             result = replace(result, draw_penalty=0, turn=other)
             return _finish(result, other) if not result.hands[other] else result
-        if state.skip_pending and state.hands[other]:
-            return replace(result, skip_pending=False, turn=other)
         return _finish(result, player)
     if isinstance(move, Draw):
         result = _draw(state, player, state.draw_penalty or 1)
-        result = replace(result, turn=other, draw_penalty=0)
+        result = replace(result, turn=other, phase="turn", draw_penalty=0)
     else:  # The legality check leaves only Skip here.
         result = replace(state, turn=other, skip_pending=False)
     return _finish(result, other) if not result.hands[other] else result

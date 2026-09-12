@@ -78,11 +78,12 @@ Recognized guarantees:
 2. Play a truthful legal last-card penalty (seven/KS) against an empty opponent.
 3. Play a truthful legal last ace against an opponent with exactly one card.
 4. Accept a response if it permits either guaranteed final play in 2 or 3 on
-   our following turn. This outranks catching a provable bluff.
+   our following turn. Against a pending ace, play the final ace directly because
+   accepting would consume the skip. This outranks catching a provable bluff.
 Last chances:
 5. If both hands are empty and a response has a draw penalty, Challenge.
 6. If opponent is empty and we have one card against a pending response ace,
-   Challenge. Accepting permits only Skip or our final ace, neither returns them.
+   Challenge. Accepting skips immediately, and our final ace or queen cannot return them.
 Certain bluff:
 7. Challenge an identity in our own hand or known_pile_cards, unless a guaranteed
    win above applies. These are certainly successful calls, not a claim of

@@ -87,7 +87,7 @@ class RulesTests(unittest.TestCase):
                               if isinstance(m, PlayCard) and m.actual_card == actual}, expected)
         self.assertIn(Draw(), MoveGenerator(s))
         pending = play(s, "JC", "7H")
-        self.assertEqual(set(MoveGenerator(pending)), {Accept(), Challenge()})
+        self.assertEqual(MoveGenerator(pending)[:2], [Accept(), Challenge()])
         self.assertEqual(pending.turn, 1)
         accepted = Play(pending, Accept())
         self.assertEqual(accepted.top, card("7H"))
@@ -109,7 +109,7 @@ class RulesTests(unittest.TestCase):
             self.assertEqual(s, original)
         pending = play(s, "JC", "7H")
         with self.assertRaises(ValueError):
-            Play(pending, Draw())
+            Play(pending, Skip())
 
     def test_queen_suit_is_chosen_before_response(self):
         s = state()
@@ -136,23 +136,66 @@ class RulesTests(unittest.TestCase):
 
     def test_ace_can_only_be_skipped_or_countered(self):
         s = state(top="AH", skip_pending=True)
-        self.assertEqual(declarations(s), {c for c in CARDS if c.rank == "A"})
+        self.assertEqual(declarations(s), {c for c in CARDS if c.rank in ("A", "Q")})
         self.assertIn(Skip(), MoveGenerator(s))
         self.assertNotIn(Draw(), MoveGenerator(s))
         skipped = Play(s, Skip())
         self.assertFalse(skipped.skip_pending)
         self.assertEqual(skipped.turn, 1)
         self.assertEqual(skipped.top, card("AH"))
-        countered = Play(play(s, "JC", "AS"), Accept())
+        countered = play(s, "JC", "AS")
         self.assertTrue(countered.skip_pending)
-        self.assertFalse(Play(countered, Skip()).skip_pending)
+        accepted = Play(countered, Accept())
+        self.assertFalse(accepted.skip_pending)
+        self.assertEqual(accepted.turn, 0)
+        self.assertNotIn(Skip(), MoveGenerator(accepted))
+
+    def test_direct_response_play_and_draw_accept_previous_claim_atomically(self):
+        for actual, declared, suit in (("JC", "9H", None), ("JC", "7H", None),
+                                      ("JC", "QS", "D")):
+            pending = play(state(), actual, declared, suit)
+            accepted = Play(pending, Accept())
+            following = MoveGenerator(accepted)
+            self.assertEqual(MoveGenerator(pending), [Accept(), Challenge()] + following)
+            for move in following:
+                with self.subTest(declared=declared, move=move):
+                    self.assertEqual(Play(pending, move), Play(accepted, move))
+            # Once a second bluff is played, only that latest card is challenged.
+            reply = next(move for move in following if isinstance(move, PlayCard)
+                         and move.actual_card != move.declared_card)
+            result = Play(Play(pending, reply), Challenge())
+            self.assertEqual(result.top, reply.actual_card)
+            self.assertEqual(result.turn, 0)
+
+    def test_queen_counters_pending_ace_before_acceptance(self):
+        for player, truthful in product((0, 1), (False, True)):
+            s = state(hands=(("AH", "8C"), ("QS", "10D")))
+            if player:
+                s = mirror(s)
+            pending = play(s, "AH")
+            response = PlayCard(card("QS" if truthful else "10D"), card("QS"), "D")
+            self.assertIn(response, MoveGenerator(pending))
+            self.assertNotIn(Skip(), MoveGenerator(pending))
+            self.assertNotIn(Draw(), MoveGenerator(pending))
+            countered = Play(pending, response)
+            self.assertEqual(countered.turn, player)
+            self.assertFalse(countered.skip_pending)
+            self.assertEqual(countered.chosen_suit, "D")
+            self.assertEqual(Play(countered, Accept()).turn, player)
+            challenged = Play(countered, Challenge())
+            self.assertEqual(challenged.turn, 1 - player if truthful else player)
+            self.assertEqual(challenged.top, response.actual_card)
+            self.assertFalse(challenged.skip_pending)
+            skipped = Play(pending, Accept())
+            self.assertEqual(skipped.turn, player)
+            self.assertFalse(skipped.skip_pending)
 
     def test_penalty_counters_and_payment(self):
         for top, penalty, counters in (("7H", 2, {c for c in CARDS if c.rank == "7"}),
                                        ("7S", 6, {c for c in CARDS if c.rank == "7"} | {card("KS")}),
                                        ("KS", 8, {card("7S")})):
             s = state(top=top, draw_penalty=penalty)
-            self.assertEqual(declarations(s), counters)
+            self.assertEqual(declarations(s), counters | {c for c in CARDS if c.rank == "Q"})
             self.assertIn(Draw(), MoveGenerator(s))
             self.assertNotIn(Skip(), MoveGenerator(s))
             paid = Play(s, Draw())
@@ -162,9 +205,33 @@ class RulesTests(unittest.TestCase):
             self.assertEqual(paid.turn, 1)
         s = Play(play(state(top="7S", draw_penalty=2), "JC", "KS"), Accept())
         self.assertEqual(s.draw_penalty, 6)
-        self.assertEqual(declarations(s), {card("7S")})
+        self.assertEqual(declarations(s), {card("7S")} | {c for c in CARDS if c.rank == "Q"})
         s = Play(play(s, "10D", "7S"), Accept())
         self.assertEqual(s.draw_penalty, 8)
+
+    def test_queen_cancels_any_accumulated_penalty_and_its_challenge_draws_only_two(self):
+        for top, penalty in (("7H", 2), ("7S", 6), ("KS", 8)):
+            for player, truthful, previous_empty in product((0, 1), (False, True), (False, True)):
+                with self.subTest(top=top, player=player, truthful=truthful, empty=previous_empty):
+                    s = state(top=top, draw_penalty=penalty, hands=(("QS", "JC"), ("8C",)))
+                    if previous_empty:
+                        s = replace(s, deck=s.deck + s.hands[1], hands=(s.hands[0], ()),
+                                    provisional_winner=1)
+                    if player:
+                        s = mirror(s)
+                    move = PlayCard(card("QS" if truthful else "JC"), card("QS"), "D")
+                    pending = Play(s, move)
+                    self.assertEqual(pending.draw_penalty, 0)
+                    self.assertFalse(pending.skip_pending)
+                    self.assertEqual(pending.chosen_suit, "D")
+                    accepted = Play(pending, Accept())
+                    self.assertEqual(accepted.winner, 1 - player if previous_empty else None)
+                    resolved = Play(pending, Challenge())
+                    loser = 1 - player if truthful else player
+                    self.assertEqual(len(resolved.hands[loser]), len(pending.hands[loser]) + 2)
+                    self.assertEqual(resolved.draw_penalty, 0)
+                    self.assertEqual(resolved.winner, 1 - player if previous_empty and not truthful else None)
+                    self.assert_conserved(resolved)
 
     def test_challenge_uses_declared_contribution_and_reveals_no_new_effect(self):
         for actual, declared, amount, truthful in (("AH", "7S", 4, False),
@@ -268,7 +335,7 @@ class RulesTests(unittest.TestCase):
 
     def test_aces_extend_return_attempt_and_each_gets_a_response(self):
         last_ace = state(hands=(("AH",), ("AS", "KS", "8C")))
-        last_ace = Play(play(last_ace, "AH"), Accept())
+        last_ace = play(last_ace, "AH")
         for s, aces in ((finish_first(("AH", "AS", "KS", "8C")), ("AH", "AS")),
                         (last_ace, ("AS",))):
             for ace in aces:
@@ -289,7 +356,7 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(Play(pending, Accept()).winner, 0)
         s = state(hands=(("AH",), ("7H", "8C")))
         s = Play(play(s, "AH"), Accept())
-        self.assertEqual(Play(s, Skip()).winner, 0)
+        self.assertEqual(s.winner, 0)
 
     def test_return_cancels_old_victory_priority(self):
         s = state(top="9S", hands=(("9H",), ("7H", "9D")), deck_first=("AH", "AS"))
@@ -418,6 +485,10 @@ class RulesTests(unittest.TestCase):
                             winner, claim, next_player = None, other, player
                         elif previous_empty:
                             winner, claim, next_player = other, None, other
+                        elif declared.rank == "A":
+                            winner = player if last_card else None
+                            claim = None
+                            next_player = player
                         else:
                             winner = None
                             claim = player if last_card else None
@@ -428,7 +499,7 @@ class RulesTests(unittest.TestCase):
                         self.assertEqual(accepted.turn, next_player)
                         self.assertEqual(accepted.phase, "finished" if winner is not None else "turn")
                         self.assertEqual(accepted.draw_penalty, 0 if previous_empty else amount)
-                        self.assertEqual(accepted.skip_pending, not previous_empty and declared.rank == "A")
+                        self.assertFalse(accepted.skip_pending)
                         self.assertEqual(accepted.top, declared)
                         self.assertEqual(accepted.chosen_suit, chosen)
                         resolved = Play(pending, Challenge())

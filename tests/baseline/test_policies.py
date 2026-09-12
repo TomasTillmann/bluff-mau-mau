@@ -155,10 +155,13 @@ class PolicyTests(unittest.TestCase):
                      pile=(c("QD"), c("JC")), phase="response"),
         )
         for state in scenarios:
-            self.assert_all_choose(state, Accept(), known=(state.pile[0],))
-            accepted = Play(state, Accept())
             final = state.hands[0][0]
-            self.assert_all_choose(accepted, PlayCard(final, final))
+            if state.skip_pending:
+                self.assert_all_choose(state, PlayCard(final, final), known=(state.pile[0],))
+            else:
+                self.assert_all_choose(state, Accept(), known=(state.pile[0],))
+                accepted = Play(state, Accept())
+                self.assert_all_choose(accepted, PlayCard(final, final))
 
     def test_an_illegal_truthful_last_penalty_is_not_a_guaranteed_play(self):
         state = position((c("7C"),), (), top=c("9H"),
@@ -284,10 +287,12 @@ class PolicyTests(unittest.TestCase):
             self.assertIsInstance(move, PlayCard)
             self.assertNotEqual(move.actual_card, move.declared_card)
 
-    def test_truth_is_used_at_b100_when_no_bluff_exists(self):
+    def test_queen_bluff_is_available_at_b100_against_a_king_penalty(self):
         state = position((c("7S"),), top=c("KS"), draw_penalty=4)
-        self.assertEqual(self.decide(MixedGreedy(100, 100, 100), state),
-                         PlayCard(c("7S"), c("7S")))
+        move = self.decide(MixedGreedy(100, 100, 100), state)
+        self.assertEqual(move.actual_card, c("7S"))
+        self.assertEqual(move.declared_card.rank, "Q")
+        self.assertIn(move.chosen_suit, "HDCS")
 
     def test_bluff_percentage_has_a_strict_boundary_and_ignores_n(self):
         state = position((c("8H"), c("10D")))
@@ -392,13 +397,13 @@ class PolicyTests(unittest.TestCase):
     def test_random_legal_is_uniform_over_truth_bluff_and_draw(self):
         state = position((c("7S"), c("8C")), top=c("KS"), draw_penalty=4)
         legal = tuple(MoveGenerator(state))
-        self.assertEqual(len(legal), 3)
+        self.assertEqual(len(legal), 35)  # Draw, two seven plays, and 32 queen declarations/suits.
         rng, bot = Random(91823), RandomLegal()
-        counts = Counter(self.decide(bot, state, rng=rng) for _ in range(3000))
+        counts = Counter(self.decide(bot, state, rng=rng) for _ in range(3500))
         self.assertEqual(set(counts), set(legal))
         for count in counts.values():
-            self.assertGreater(count, 880)
-            self.assertLess(count, 1120)
+            self.assertGreater(count, 60)
+            self.assertLess(count, 140)
 
     def test_random_legal_is_uniform_after_the_return_filter(self):
         state = position((c("8C"), c("10D")), (), top=c("KS"), draw_penalty=4)

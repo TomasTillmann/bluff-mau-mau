@@ -238,7 +238,7 @@ class MatchContractTests(unittest.TestCase):
     def test_illegal_policy_outputs_are_rejected_by_play(self):
         start = state(['8H', '10C'], ['9D', 'AC'], ['9H'])
         pending = Play(start, PlayCard(card('8H'), card('9D')))
-        for output in (Draw(), None, object(), PlayCard(card('9H'), card('9H'))):
+        for output in (Skip(), None, object(), PlayCard(card('9H'), card('9H'))):
             with self.subTest(output=output), self.assertRaises(ValueError):
                 run_match((Spy(), Spy(moves=[output])), initial_state=pending, max_decisions=1)
 

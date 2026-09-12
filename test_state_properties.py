@@ -48,22 +48,24 @@ class StatePropertyTests(unittest.TestCase):
                         self.assertEqual(len(actual_moves), len(expected))
 
     def test_all_pending_effect_move_sets_ignore_actual_card_identity(self):
-        sevens = {Card("7", suit) for suit in SUITS}
-        aces = {Card("A", suit) for suit in SUITS}
+        queens = {Card("Q", suit) for suit in SUITS}
+        sevens = {Card("7", suit) for suit in SUITS} | queens
+        aces = {Card(rank, suit) for rank in ("A", "Q") for suit in SUITS}
         cases = [(Card("A", suit), 0, True, aces, Skip()) for suit in SUITS]
         for suit in SUITS:
             for amount in (2, 6, 30, 100):
                 counters = sevens | ({Card("K", "S")} if suit == "S" else set())
                 cases.append((Card("7", suit), amount, False, counters, Draw()))
-        cases += [(Card("K", "S"), amount, False, {Card("7", "S")}, Draw())
+        cases += [(Card("K", "S"), amount, False, {Card("7", "S")} | queens, Draw())
                   for amount in (4, 8, 32, 100)]
         for top, amount, skip, identities, alternative in cases:
             for turn in (0, 1):
                 with self.subTest(top=top, amount=amount, turn=turn):
                     state = position(top, turn=turn, penalty=amount, skip=skip)
                     expected = {alternative} | {
-                        PlayCard(actual, declared) for actual in state.hands[turn]
+                        PlayCard(actual, declared, suit) for actual in state.hands[turn]
                         for declared in identities
+                        for suit in (SUITS if declared.rank == "Q" else (None,))
                     }
                     self.assertEqual(set(MoveGenerator(state)), expected)
                     for move in expected:
@@ -90,7 +92,11 @@ class StatePropertyTests(unittest.TestCase):
                     state = GameState(deck=rest[2:], pile=(start,),
                                       hands=((actual, rest[0]), (rest[1],)), turn=0, top=start)
                     pending = Play(state, PlayCard(actual, declared, chosen))
-                    self.assertEqual(MoveGenerator(pending), [Accept(), Challenge()])
+                    expected = [Accept(), Challenge()] + [
+                        move for move in MoveGenerator(replace(pending, phase="turn"))
+                        if not isinstance(move, Skip)
+                    ]
+                    self.assertEqual(MoveGenerator(pending), expected)
                     accepted = Play(pending, Accept())
                     self.assertEqual(accepted.top, declared)
                     self.assertEqual(accepted.pile[-1], actual)
@@ -140,6 +146,8 @@ class StatePropertyTests(unittest.TestCase):
         for seed in range(40):
             sampler = random.Random(seed + 1000)
             state = NewGame(seed, dealer=seed % 2)
+            if seed == 0:
+                state = replace(state, deck=(), pile=state.deck + state.pile)
             for step in range(250):
                 with self.subTest(seed=seed, step=step):
                     before = pickle.dumps(state)
@@ -149,7 +157,10 @@ class StatePropertyTests(unittest.TestCase):
                         break
                     self.assertTrue(moves)
                     self.assertEqual(len(moves), len(set(moves)))
-                    move = sampler.choice(moves)
+                    # Skip now exists only on a starting ace: cover that rare branch explicitly.
+                    move = Skip() if step == 0 and Skip() in moves else sampler.choice(moves)
+                    if seed == 0 and step == 0:
+                        move = Draw()  # Exercise recycling without relying on random frequency.
                     counts[type(move)] += 1
                     result = Play(state, move)
                     self.assertEqual(result, Play(state, move))

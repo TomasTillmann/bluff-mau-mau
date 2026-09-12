@@ -237,7 +237,7 @@ class PublicBoundaryTests(unittest.TestCase):
         for s in (initial, mirror(initial)):
             pending = play(s, "9H")
             with self.subTest(player=s.turn):
-                self.assertEqual(MoveGenerator(pending), [Accept(), Challenge()])
+                self.assertEqual(MoveGenerator(pending)[:2], [Accept(), Challenge()])
                 result = Play(pending, Challenge())
                 self.assertEqual(result.winner, s.turn)
                 self.assertEqual(result.hands[s.turn], ())
@@ -418,10 +418,10 @@ class PublicBoundaryTests(unittest.TestCase):
                       PlayCard(card("10D"), card("9H")),
                       PlayCard(card("JC"), card("QH")),
                       PlayCard(card("JC"), card("9H"), "H"))),
-            (response, (Draw(), Skip(), PlayCard(card("10D"), card("9H")))),
-            (ace, (Draw(), Accept(), Challenge(), PlayCard(card("JC"), card("QH"), "H"))),
+            (response, (Skip(), PlayCard(card("10D"), card("8S")))),
+            (ace, (Draw(), Accept(), Challenge(), PlayCard(card("JC"), card("9H")))),
             (seven, (Skip(), Accept(), Challenge(), PlayCard(card("JC"), card("KS")),
-                     PlayCard(card("JC"), card("QH"), "H"))),
+                     PlayCard(card("JC"), card("AH")))),
             (king, (Skip(), Accept(), Challenge(), PlayCard(card("JC"), card("7H")))),
         )
         for s, moves in invalid_cases:
@@ -641,14 +641,16 @@ class ImmutableReplayTests(unittest.TestCase):
             ("KS", 4, False, ("7S",)),
             ("7H", 2, False, ("7H", "7D", "7C", "7S")),
             ("7S", 6, False, ("7H", "7D", "7C", "7S", "KS")),
-            ("AH", 0, True, ("AH", "AD", "AC", "AS")),
+            ("AH", 0, True, ("AH", "AD", "AC", "AS", "QH", "QD", "QC", "QS")),
         )
         for top, penalty, skip, declarations in cases:
             s = state(top=top, hands=(("JC",), ("8C",)),
                       draw_penalty=penalty, skip_pending=skip)
             s = replace(s, deck=(), hands=(s.hands[0], s.hands[1] + s.deck))
             moves = MoveGenerator(s)
-            expected = {PlayCard(card("JC"), card(declared)) for declared in declarations}
+            declarations = set(declarations) | {"Q" + suit for suit in SUITS}
+            expected = {PlayCard(card("JC"), card(declared), suit) for declared in declarations
+                        for suit in (SUITS if declared.startswith("Q") else (None,))}
             with self.subTest(top=top):
                 self.assertEqual({m for m in moves if isinstance(m, PlayCard)}, expected)
                 self.assertNotIn(Draw(), moves)
@@ -656,7 +658,7 @@ class ImmutableReplayTests(unittest.TestCase):
                     pending = Play(s, move)
                     self.assertEqual(pending.hands[0], ())
                     self.assertIsNone(pending.winner)
-                    self.assertEqual(MoveGenerator(pending), [Accept(), Challenge()])
+                    self.assertEqual(MoveGenerator(pending)[:2], [Accept(), Challenge()])
 
 
 if __name__ == "__main__":

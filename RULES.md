@@ -19,13 +19,13 @@ Players choose only from the legal moves available in the current game state. Th
 
 | Declared card | Effect |
 |---|---|
-| **Queen** | Can be played regardless of suit/rank, except against an outstanding draw penalty or ace. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
-| **Ace** | Opponent must skip or counter with another ace. Aces pass the skip onward; they do not accumulate multiple skipped turns. |
+| **Queen** | Can be played on **any card**, including an ace, seven, or K♠. It cancels the pending skip or entire accumulated draw penalty. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
+| **Ace** | Accepting immediately skips the opponent's turn; alternatively they can counter with another ace or a queen before accepting. Aces pass the skip onward; they do not accumulate multiple skipped turns. |
 | **Any seven** | Adds **two cards** to the draw penalty. Another seven can counter it. |
-| **K♠** | Adds **four cards**. Only **7♠** can counter it. **K♠ can also counter 7♠**. |
+| **K♠** | Adds **four cards**. Only **7♠** adds to it; a queen cancels it. **K♠ can also counter 7♠**. |
 | **Other cards** | No special effect. |
 
-Draw penalties accumulate until someone takes them. Taking the penalty clears it and ends that player’s turn. A skipped turn consumes the ace’s skip effect. In either case, the top card still determines the current suit/rank.
+Draw penalties accumulate until someone takes them or plays a queen to cancel them. Taking the penalty clears it and ends that player’s turn. A skipped turn consumes the ace’s skip effect. In either case, the top card still determines the current suit/rank.
 
 If the **starting card is a queen**, there is **no suit or rank restriction until another card is played**. This freedom applies to **both players on their turns**, for as many turns as the queen remains on top. Its printed suit does not restrict play. Drawing ends the turn as usual but **does not remove this freedom**; drawing is allowed only while cards can be drawn. The next played card is accepted or challenged normally and determines how play continues. Starting aces, sevens and K♠ affect the first player normally.
 
@@ -33,7 +33,8 @@ If the **starting card is a queen**, there is **no suit or rank restriction unti
 
 After each play, before applying its effect to the opponent, the opponent chooses:
 
-- **Accept:** Continue according to the declaration. It now counts as that card, regardless of its actual identity, and cannot be challenged later.
+- **Accept:** Continue according to the declaration. It now counts as that card, regardless of its actual identity, and cannot be challenged later. Accepting an ace immediately consumes the skip and gives the turn back to its player.
+- **Play or draw:** A legal next play or draw implicitly accepts the previous declaration in the same decision. Aces and queens can counter a pending ace this way, before its skip is consumed. Merely choosing a card or declaration does not accept anything.
 - **Challenge:** Reveal the latest card and compare its printed rank and suit with the declaration. A queen’s chosen continuing suit is separate from its identity and does not make an otherwise truthful declaration false.
 
 If the declaration was false, **the bluffer loses the challenge**. If it was truthful, **the challenger loses**.
@@ -87,7 +88,7 @@ You declare a seven; your opponent accepts and declares another seven. You chall
 
 ### K♠ has specific counters
 
-After a declared **7♠**, the opponent may counter with **K♠**, bringing the penalty to **six cards**. The next counter can only be **7♠**, bringing it to eight. **7♥** cannot counter K♠, and K♠ cannot counter 7♥.
+After a declared **7♠**, the opponent may counter with **K♠**, bringing the penalty to **six cards**. The next stacking counter can only be **7♠**, bringing it to eight. A queen of any suit can instead cancel the entire six-card penalty; challenging that queen costs the loser two cards. **7♥** cannot counter K♠, and K♠ cannot counter 7♥.
 
 ### A revealed special card does not activate its effect
 

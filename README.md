@@ -9,7 +9,7 @@ state = NewGame(seed=42, dealer=0)
 moves = MoveGenerator(state)
 move = next(move for move in moves if isinstance(move, PlayCard))
 pending = Play(state, move)
-assert MoveGenerator(pending) == [Accept(), Challenge()]
+assert MoveGenerator(pending)[:2] == [Accept(), Challenge()]
 next_state = Play(pending, Accept())
 assert state == NewGame(seed=42, dealer=0)  # The input was not modified.
 ```
@@ -87,15 +87,17 @@ The move types are frozen dataclasses:
 | Move | Meaning |
 | --- | --- |
 | `PlayCard(actual_card, declared_card, chosen_suit=None)` | Play a card from the acting hand under a legal declaration. A declared queen requires one of the four suit codes, even when bluffing; other declarations require `None`. |
-| `Accept()` | Accept the latest declaration. |
+| `Accept()` | Accept the latest declaration, immediately consuming an ace's skip. |
 | `Challenge()` | Reveal and challenge the latest declaration. |
 | `Draw()` | Take the pending draw penalty, or one card when there is none, and end the turn. |
 | `Skip()` | Consume an ace's skip effect and end the turn. |
 
-After `PlayCard`, the opponent acts in `"response"` phase and chooses only
-`Accept()` or `Challenge()`. Acceptance generally leaves that same opponent
-in `"turn"` phase. Forced effects on an empty hand are resolved as part of
-acceptance; see [clarification-rules.md](clarification-rules.md).
+After `PlayCard`, the opponent acts in `"response"` phase. `Accept()` and
+`Challenge()` remain first in the legal list. A nonempty responder can also play
+or draw directly to implicitly accept the prior claim. Against an ace, only an
+ace or queen may be played; explicit acceptance consumes the skip immediately.
+Queens cancel any pending skip or draw penalty. Forced effects on an empty hand
+are resolved during acceptance; see [clarification-rules.md](clarification-rules.md).
 
 ## State and replay
 

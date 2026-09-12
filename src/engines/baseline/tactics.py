@@ -19,6 +19,9 @@ def candidates(observation: Observation, legal_moves: tuple[Move, ...]) -> tuple
                              or observation.opponent_count == 1 and last.rank == "A")
             # The core declaration helper needs only these public top/effect/suit fields.
             if winning_final and last in _declarations(observation):
+                if observation.skip_pending:
+                    return tuple(move for move in legal_moves if isinstance(move, PlayCard)
+                                 and move.actual_card == move.declared_card == last)
                 response = Accept
         if response is None:
             last_chance = (observation.opponent_count == 0 and (
