@@ -12,7 +12,7 @@ const context = vm.createContext({ assert, AbortSignal, handlers, document: {
   },
   addEventListener(type, handler) { handlers[type] = handler; },
 } });
-vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\nrequest\('\/api\/state'\);\s*$/, ''), context);
+vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\nrequest\('\/api\/new', \{\}\);\s*$/, ''), context);
 vm.runInContext(`(async () => {
   const legal = [
     { id: 1, type: 'play', actual: '7H', declared: '7H', chosen_suit: null },
@@ -36,6 +36,12 @@ vm.runInContext(`(async () => {
   const realRequest = request;
   let sent;
   request = (...args) => { sent = args; };
+  handlers.click({ target: { closest: () => ({ id: 'retry' }) } });
+  assert.equal(sent[0], '/api/state', 'In-game retry can refresh the current game');
+  state = null;
+  handlers.click({ target: { closest: () => ({ id: 'retry' }) } });
+  assert.deepEqual(sent, ['/api/new', {}], 'Failed page startup must retry a fresh game');
+  state = turn;
   handlers.click({ target: { closest: () => ({ id: 'play-truthful', dataset: { move: '1' } }) } });
   assert.equal(sent[1].move_id, 1, 'Click sends the truthful move rather than the grid move');
   sent = null;

@@ -62,13 +62,13 @@ Player 2 stays above Player 1 in every phase. Both hands remain face up in this 
 
 In the playable table, the wordmark is visually hidden behind the club mark and the table footer is omitted. Piles show counts with screen-reader names; the declaration plaque shows only its card identity, with no status or continuing-suit text. A pile becomes a native button only when its action is available. Its top image lifts/tilts over 260ms, with a stationary hit area. The discard animates only when it can challenge. Selecting a hand card/declaration or taking Draw/Skip accepts a pending claim before the intended action; hover and navigation do not.
 
-MoveExplain is a persistent title-and-detail strip directly below Player 1’s hand,
+MoveExplain is a title-and-detail strip directly below Player 1’s hand,
 on the green table with paper title text and muted table detail text. Reserve
 space for feedback without a toast, timer, or overlay; compact short-desktop
 cards and spacing keep it in view. It always speaks from Player 1’s perspective,
 uses public snapshots and actual hand-count differences (including shortages),
 and updates the existing polite live announcement. Selection preserves the strip;
-new games and debug presets clear it.
+reloads, new games, and debug presets clear it.
 
 The game action panel reserves intrinsic space for the actual-card preview, queen
 continuation row, and validation feedback. Keep declaration and submit positions

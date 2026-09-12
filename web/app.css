@@ -12,6 +12,7 @@
 .game-hand-scroll { --game-hand-gutter: 32px; container-type: inline-size; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: var(--game-hand-gutter); scrollbar-color: var(--bp-table-muted) var(--bp-table); }
 /* Compress one continuous fan until only readable corner indices remain, then scroll. */
 .game-fan.bp-hand { --bp-card-width: 105px; --game-card-step: clamp(calc(var(--bp-card-width) * .26), calc((100cqw - 2 * var(--game-hand-gutter) - var(--bp-card-width)) / var(--game-card-gaps)), calc(var(--bp-card-width) * .42)); width: max-content; min-width: 100%; padding: 28px var(--game-hand-gutter) 30px; }
+.game-fan[data-active="false"] { opacity: .5; }
 .game-fan .bp-card { --bp-card-width: inherit; }
 .game-fan .bp-card + .bp-card { margin-left: calc(var(--game-card-step) - var(--bp-card-width)); }
 .game-fan .bp-card:disabled { opacity: 1; cursor: default; }

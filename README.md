@@ -23,7 +23,9 @@ python3 -B server.py
 
 Open <http://127.0.0.1:8767/> in Chrome. Use `--port NUMBER` to choose another
 local port. The server uses only Python's standard library and holds one shared
-game in memory; reloading keeps that game, while restarting the server deals again.
+game only in memory. Every page load or reload replaces it with a fresh deal,
+clearing moves, selections, and history. No game data is saved to browser storage
+or disk; reloading any tab resets the shared debug game.
 
 Both hands stay visible in fixed seats. Make the active player's decisions,
 including playing any actual card as a legal declaration, selecting a queen's
@@ -41,7 +43,7 @@ forced returns and finished games stop the sequence. Hovering or scrolling never
 MoveExplain keeps the last public result directly below Player 1’s hand, always
 using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts
 come from actual hand-count changes, including shortages and recycled cards.
-The result survives reloads, selections, and failed moves; a new game or debug
+The result survives selections and failed moves; a reload, new game, or debug
 preset clears it. Hidden card identities are never used in its explanations.
 
 Use **Stress hand…** to inspect 30 playable cards or the 31-card finished

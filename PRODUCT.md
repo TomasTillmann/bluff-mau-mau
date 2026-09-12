@@ -14,10 +14,12 @@ A playable local debug table built from the approved component study. Both hands
 ## Confirmed requirements
 Use the supplied Public Domain Deck from `free-playing-cards/`, shallow overlapping card fans, fixed Player 2 above Player 1, and readable card indices. Preserve the approved green cloth, paper controls, vermilion actions, and Bricolage lettering. Include draw/discard piles, effective declaration/status, pending effects, actual-card selection, all 32 declaration choices, queen continuation suits, play/draw/skip/accept/challenge actions, and recent public moves. An empty hand is provisional until the engine reports a winner. Player 1, the bottom seat, always starts new games. Only actionable piles animate: the draw pile draws, and the facedown discard challenges a pending claim. Choosing another gameplay action accepts the claim first, then follows the engine’s returned state. Keep pile counts; hide visible pile names, title/footer text, and all status or continuing-suit text in the declaration plaque.
 
-Keep a persistent MoveExplain result directly below Player 1’s hand. Explain the
+Keep the latest MoveExplain result directly below Player 1’s hand. Explain the
 last completed action from Player 1’s perspective using only public information,
 with actual hand-count changes for draws and shortages. Preserve it through
-reloads, selection, and failed moves; clear it on new games and debug presets.
+selection and failed moves; clear it on reloads, new games, and debug presets.
+Every page load starts a fresh game. Do not persist game data in browser storage
+or on disk.
 
 The “Play as itself” shortcut below the declaration grid uses the selected hand
 card as its declaration. Start without a selected card, and enable the shortcut

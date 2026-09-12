@@ -15,8 +15,10 @@ npm --prefix tests/integration test
 Google Chrome, Node.js, and Python 3.10+ must be installed. Use `test:headed`
 instead of `test` to watch Chrome. The suite starts its own local game server on
 port 18767 and stops it afterward; do not run it against the user's game on 8767.
-Run serially because the debug server has one shared game. Seed/reset through
-the real HTTP API; do not mock legal moves or replace app event handlers.
+Run serially because the debug server has one shared game. Each page load deals
+through POST /api/new. Seed that real startup request with route.continue and
+postData; keep the server response real. Load stress hands through the actual
+preset dropdown. Do not mock legal moves or replace app event handlers.
 
 Test rendered behavior, not the presence of CSS declarations. Use real hover
 and clicks without `force`, including the visible edges of a card stack. Check

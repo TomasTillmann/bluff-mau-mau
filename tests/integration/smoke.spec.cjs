@@ -10,10 +10,17 @@ async function pick(page, card, player = 0) {
 const ready = page => expect(page.locator('#game')).toHaveAttribute('aria-busy', 'false');
 
 async function load(page, data = { seed: 0 }, endpoint = '/api/new') {
-  const response = await page.request.post(endpoint, { data });
-  expect(response.ok()).toBeTruthy();
+  await page.unroute('**/api/new');
+  const seedData = endpoint === '/api/new' ? data : { seed: 0 };
+  await page.route('**/api/new', route => route.continue({ postData: JSON.stringify(seedData) }));
+  const started = page.waitForResponse(response => response.url().endsWith('/api/new') && response.request().method() === 'POST');
   await page.goto('/');
+  expect((await started).ok()).toBeTruthy();
   await ready(page);
+  if (endpoint === '/api/debug/max-hand') {
+    await page.locator('#hand-preset').selectOption(String(data.count));
+    await ready(page);
+  }
   await page.evaluate(async () => {
     await document.fonts.ready;
     await Promise.all([...document.images].map(image => image.decode()));
@@ -50,8 +57,33 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(async ({ page }) => expect(errors.get(page)).toEqual([]));
 
-test('draw pile lifts at its visible edge and really draws', async ({ page }) => {
+test('draw pile lifts, draws and swaps the active hand', async ({ page }) => {
+  async function checkHands(activePlayer) {
+    for (const player of [0, 1]) {
+      await expect(page.locator(`#player-${player}`)).toHaveText(`Player ${player + 1}`);
+      const fan = page.locator(`[aria-labelledby="player-${player}"] .game-fan`);
+      if (player === activePlayer) {
+        await expect(fan).toHaveCSS('opacity', '1');
+        await expect(fan.locator('[data-card]').last()).toBeEnabled();
+      } else {
+        await expect.poll(() => fan.evaluate(el => Number(getComputedStyle(el).opacity))).toBeLessThan(1);
+        const card = fan.locator('[data-card]').last();
+        await expect(card).toBeDisabled();
+        await card.scrollIntoViewIfNeeded();
+        await page.mouse.move(2, 2);
+        const transforms = () => card.evaluate(el => [el, el.querySelector('img')].map(node => getComputedStyle(node).transform));
+        const resting = await transforms();
+        const box = await card.boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await card.evaluate(async el => {
+          await Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished));
+        });
+        expect(await transforms(), 'Inactive cards must not move on hover').toEqual(resting);
+      }
+    }
+  }
   await load(page);
+  await checkHands(0);
   await expect(page.locator('#pile-challenge')).toHaveCount(0);
   const point = await hoverPile(page, '#pile-draw', true);
   await page.mouse.click(point.x, point.y);
@@ -60,6 +92,7 @@ test('draw pile lifts at its visible edge and really draws', async ({ page }) =>
   const state = await (await page.request.get('/api/state')).json();
   expect(state.hands[0]).toHaveLength(6);
   expect(state.turn).toBe(1);
+  await checkHands(1);
 });
 
 test('both players can call a bluff by clicking a two- or three-layer discard', async ({ page }) => {
@@ -121,4 +154,46 @@ test('maximum hands stay in one fan and their end cards remain reachable', async
     } else await expect(cards.last()).toBeDisabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }
+});
+
+
+test('reload clears play state, selections and finished debug presets', async ({ page }) => {
+  async function reloadFresh() {
+    const before = await (await page.request.get('/api/state')).json();
+    await page.reload();
+    await ready(page);
+    const after = await (await page.request.get('/api/state')).json();
+    expect(after.version).toBeGreaterThan(before.version);
+    expect(after.turn).toBe(0);
+    expect(after.phase).toBe('turn');
+    expect(after.hands.map(hand => hand.length)).toEqual([5, 5]);
+    expect([after.draw_penalty, after.skip_pending, after.winner, after.provisional_winner, after.chosen_suit]).toEqual([0, false, null, null, null]);
+    expect(after.move_explain).toBeNull();
+    expect(after.history).toHaveLength(1);
+    await expect(page.locator('#actor')).toHaveText('Player 1 to act');
+    await expect(page.locator('[data-card][aria-pressed="true"], [data-declared][aria-pressed="true"], [data-suit][aria-pressed="true"]')).toHaveCount(0);
+    await expect(page.getByLabel('Last move', { exact: true })).toHaveText('');
+    await expect(page.locator('.game-history .bp-history__row')).toHaveCount(1);
+    await expect(page.locator('.game-history')).toContainText('New game.');
+    await expect(page.locator('#hand-preset')).toHaveValue('');
+  }
+  await load(page);
+  await pick(page, '10H');
+  await page.locator('#declare-7C').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  await pick(page, 'JC', 1);
+  await page.locator('#declare-QH').click();
+  await page.locator('#suit-S').click();
+  const played = await (await page.request.get('/api/state')).json();
+  expect(played.draw_penalty).toBe(2);
+  expect(played.history.length).toBeGreaterThan(1);
+  expect(played.move_explain).not.toBeNull();
+  await expect(page.locator('#declare-QH')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#suit-S')).toHaveAttribute('aria-pressed', 'true');
+  await reloadFresh();
+  await page.locator('#hand-preset').selectOption('31');
+  await ready(page);
+  await expect(page.locator('.game-winner')).toBeVisible();
+  await reloadFresh();
 });

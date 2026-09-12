@@ -29,7 +29,7 @@ function hand(player) {
     const position = cards.length === 1 ? 0 : (index / (cards.length - 1)) * 2 - 1;
     return `<button id="hand-${player}-${card}" type="button" class="bp-card" style="--bp-fan-angle:${position * 7}deg;--bp-fan-drop:${position * position * 12}px" aria-label="${cardName(card)}${canSelect ? state.phase === 'response' ? ', accept declaration and select actual card' : ', select actual card' : ''}" aria-pressed="${canSelect && card === actual}" data-card="${card}" ${!canSelect || busy ? 'disabled' : ''}>${cardImage(card)}</button>`;
   }).join('');
-  return `<section class="game-seat" aria-labelledby="player-${player}"><h2 id="player-${player}" class="bp-hand-label"><strong>${playerName(player)}</strong>${state.winner === null && player === state.turn ? `<span class="bp-hand-label__turn">${state.phase === 'response' ? 'Responding' : 'To act'}</span>` : ''}<span class="bp-hand-label__count">${pluralCards(cards.length)}</span></h2>${cards.length ? `<div class="game-hand-scroll" data-scroll="hand-${player}" tabindex="0" role="region" aria-label="${playerName(player)} hand, ${pluralCards(cards.length)}"><div class="bp-hand game-fan" style="--game-card-gaps:${Math.max(1, cards.length - 1)}">${fan}</div></div>` : `<p class="game-empty-hand">${state.winner === player ? 'Out — game won' : 'Empty hand'}</p>`}</section>`;
+  return `<section class="game-seat" aria-labelledby="player-${player}"><h2 id="player-${player}" class="bp-hand-label"><strong>${playerName(player)}</strong></h2>${cards.length ? `<div class="game-hand-scroll" data-scroll="hand-${player}" tabindex="0" role="region" aria-label="${playerName(player)} hand, ${pluralCards(cards.length)}"><div class="bp-hand game-fan" data-active="${canSelect}" style="--game-card-gaps:${Math.max(1, cards.length - 1)}">${fan}</div></div>` : `<p class="game-empty-hand">${state.winner === player ? 'Out — game won' : 'Empty hand'}</p>`}</section>`;
 }
 
 function turnActions() {
@@ -211,7 +211,7 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled || busy) return;
   if (button.id === 'new-game') return void request('/api/new', {});
-  if (button.id === 'retry') return void request('/api/state');
+  if (button.id === 'retry') return void request(state ? '/api/state' : '/api/new', state ? undefined : {});
   if (!state || state.winner !== null) return;
   if (button.dataset.move !== undefined) {
     const move = state.legal_moves.find(item => item.id === Number(button.dataset.move));
@@ -236,4 +236,4 @@ document.querySelector('#hand-preset').addEventListener('change', event => {
   if (count) void request('/api/debug/max-hand', { count });
 });
 
-request('/api/state');
+request('/api/new', {});
