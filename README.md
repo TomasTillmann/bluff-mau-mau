@@ -82,3 +82,94 @@ action sequences exercise transitions without providing a gameplay bot.
 
 Independent adversarial audit findings and their resolution are recorded in
 [AUDIT.md](AUDIT.md).
+
+## Baseline engines
+
+The bots live in `src/engines/baseline/`; shared player observations and match
+facilities live in `src/engines/`. The trusted rules engine remains unchanged.
+All imports work from the repository root without installing dependencies.
+
+```python
+from random import Random
+from bluff_mau_mau import MoveGenerator, NewGame, Play
+from src.engines import new_knowledge, observe, advance_knowledge
+from src.engines.baseline import HonestFirst, MixedGreedy, RandomLegal, mixed_grid
+
+state = NewGame(seed=42)
+knowledge = new_knowledge(state.top)
+bot = MixedGreedy(bluff=10, no_truth_bluff=40, challenge=20)
+moves = tuple(MoveGenerator(state))
+move = bot(observe(state, knowledge), moves, Random(10000))
+next_state = Play(state, move)
+knowledge = advance_knowledge(state, move, next_state, knowledge)
+```
+
+Every bot instance has the same decision interface:
+`bot(observation, legal_moves, rng) -> Move`. Configuration is bound at
+construction. The common interface does not impose a strategy on other engines;
+the obvious-move checks live inside these baselines.
+
+| Name | Fallback after obvious-move checks |
+| --- | --- |
+| `RandomLegal[uniform]` | Uniform over the remaining legal choices. |
+| `HonestFirst[B0-N0-C0]` | Play truthfully if possible; otherwise draw/skip, or bluff when required to continue. Accept uncertain declarations. |
+| `MixedGreedy[B10-N40-C20]` | B% bluff when truth is available; N% bluff when truth is unavailable; C% challenge on uncertain responses. |
+
+MixedGreedy never voluntarily draws/skips when a truthful surviving play exists.
+When truth is unavailable, drawing/skipping is the alternative to bluffing.
+Forced wins, last chances, provable bluffs, and return-attempt restrictions precede
+these probabilities. The two greedy policies share simple card preferences and
+random tie breaking. A provable bluff can use either the bot's own hand or its
+personal knowledge of cards still in the discard pile.
+
+Each player knows their own actual discards and cards revealed to both players,
+including the starting card. Acceptance never proves a declaration. Recycling
+shuffles older discards into the draw pile and removes them from both known-pile
+sets; the top stays known only to players who already knew it. The observation
+never exposes hidden opponent cards, unknown discards, deck order, or RNG state.
+
+`mixed_grid()` enumerates all **1,331** configurations with B, N, C independently
+at 0, 10, ..., 100 percent, with each configuration encoded in its `.name`.
+Direct construction also permits integer percentages between the grid points.
+The full behavior/API specification is in [docs/baseline-engines.md](docs/baseline-engines.md).
+
+### Matches and grid evaluation
+
+```sh
+python3 -B -m src.engines.baseline --deals 100 --seed 0 --bot-seed 10000
+python3 -B -m src.engines.baseline --grid --deals 10 --seed 1000 --bot-seed 20000
+```
+
+The first command compares the three defaults in paired seats. The second
+compares every MixedGreedy configuration against the fixed RandomLegal and
+HonestFirst opponents in paired seats; it does not run every grid candidate
+against every other candidate. Grid evaluation can take substantially longer.
+JSON results use the full parameterized names and report wins, losses,
+truncations, mean decision count, bluff/challenge frequency, and challenge success.
+A cutoff is unfinished, never an in-game draw. Means include cutoffs; unobserved
+rates are `null`.
+
+For custom comparisons, import `run_match`, `round_robin`, and `evaluate_grid`
+from `src.engines.matches`. The runner follows `state.turn`, maintains each
+player's pile knowledge, and separates game randomness from each policy's RNG.
+A resumed `initial_state` may provide `initial_knowledge`; omitted knowledge is
+conservatively empty because reveal history cannot be reconstructed from a
+snapshot. Reuse deal seeds and bot seeds to reproduce a run. Keep final evaluation
+deals separate from tuning deals. Grid enumeration/evaluation does not select an
+optimal configuration automatically.
+
+### Independent tests
+
+New baseline tests live in `tests/baseline/` and run with the existing command:
+
+```sh
+python3 -B -m unittest discover -s tests -v
+python3 -B -m unittest -v
+```
+
+The baseline test authors received only the public contract, rules, and trusted
+card-game engine in isolated directories. They authored and froze their tests
+without reading or importing the old or new bot implementation. The integration
+run checks those tests against the code afterward; original game and web tests
+remain separate. Test provenance and audit evidence are recorded in
+[docs/baseline-verification.md](docs/baseline-verification.md).
