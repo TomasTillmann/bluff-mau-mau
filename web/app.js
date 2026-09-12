@@ -70,8 +70,12 @@ function table() {
   return `<section class="bp-table game-table" aria-label="Card table">${hand(1)}<div class="bp-piles">${pile('Draw pile', state.deck_count, null, turnActions().find(move => move.type === 'draw'))}${pile('Discards', state.pile_count, faceUp ? state.top : null, state.legal_moves.find(move => move.type === 'challenge'))}<div class="bp-declared"><p class="bp-declared__title">${faceUp ? 'Top' : 'Declared'} ${cardMark(state.top)}</p></div></div><div class="bp-effects"><span>${effectsText()}</span></div>${state.winner !== null ? `<p class="game-winner">${playerName(state.winner)} wins.</p>` : state.provisional_winner !== null ? `<p class="game-pending-win">${playerName(state.provisional_winner)} is out for now. The return attempt is still in play.</p>` : ''}<div class="game-player-result">${hand(0)}${moveExplain()}</div></section>`;
 }
 
+function canDeclare(card) {
+  return state.legal_moves.some(move => move.type === 'play' && move.declared === card);
+}
+
 function declarations() {
-  return `<div class="bp-field"><h3 class="bp-field__title" id="declaration-label">Declare a card</h3><p class="bp-field__help">Any card can bluff a legal declaration.</p><div class="bp-declarations" data-scroll="declarations"><div class="game-declaration-grid" role="group" aria-labelledby="declaration-label">${Object.keys(suits).map(code => ranks.map(value => `<button id="declare-${value}${code}" type="button" class="bp-declaration${'HD'.includes(code) ? ' bp-red' : ''}" data-declared="${value}${code}" aria-label="Declare ${cardName(value + code)}" aria-pressed="${declared === value + code}" ${busy || state.winner !== null ? 'disabled' : ''}><span class="game-declaration-rank" aria-hidden="true">${value}</span>${suitMark(code)}</button>`).join('')).join('')}</div></div></div>`;
+  return `<div class="bp-field"><h3 class="bp-field__title" id="declaration-label">Declare a card</h3><p class="bp-field__help">Any card can bluff a legal declaration.</p><div class="bp-declarations" data-scroll="declarations"><div class="game-declaration-grid" role="group" aria-labelledby="declaration-label">${Object.keys(suits).map(code => ranks.map(value => `<button id="declare-${value}${code}" type="button" class="bp-declaration${'HD'.includes(code) ? ' bp-red' : ''}" data-declared="${value}${code}" aria-label="Declare ${cardName(value + code)}" aria-pressed="${declared === value + code}" ${busy || state.winner !== null || !canDeclare(value + code) ? 'disabled' : ''}><span class="game-declaration-rank" aria-hidden="true">${value}</span>${suitMark(code)}</button>`).join('')).join('')}</div></div></div>`;
 }
 
 function finalPlay(declaration = declared) {

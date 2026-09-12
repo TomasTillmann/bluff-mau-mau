@@ -68,6 +68,7 @@
 .game-panel .bp-field__title { margin-bottom: 4px; }
 .game-declaration-grid { display: grid; grid-template-columns: repeat(8, minmax(44px, 1fr)); gap: 4px; }
 .game-declaration-grid .bp-declaration { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 52px; background: var(--bp-white); }
+.game-declaration-grid .bp-declaration:disabled { opacity: .3; cursor: default; pointer-events: none; }
 .game-declaration-rank { font: 600 18px/1 var(--bp-font-display); }
 .game-declaration-grid .bp-suit { font-size: 17px; }
 .game-declaration-grid .bp-declaration:hover:not(:disabled) { background: var(--bp-paper-hover); }
