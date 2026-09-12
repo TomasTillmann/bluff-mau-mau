@@ -40,5 +40,17 @@ vm.runInContext(`
   state.winner = null;
   state.legal_moves = [{ type: 'challenge' }];
   assert.equal((declarations().match(/ disabled/g) || []).length, 32);
+  for (const [opening_card, top, choice, expected] of [
+    [true, '7H', '7S', 'Starts a 4-card penalty if accepted.'],
+    [true, '7S', 'KS', 'Starts a 6-card penalty if accepted.'],
+    [true, 'KS', '7S', 'Starts a 6-card penalty if accepted.'],
+    [true, '7S', '8S', 'No special effect if accepted.'],
+    [true, 'AH', '7H', 'Adds a 2-card penalty if accepted.'],
+    [false, '7H', '7S', 'Adds a 2-card penalty if accepted.'],
+  ]) {
+    state = { opening_card, top };
+    declared = choice;
+    assert.equal(declarationEffect(), expected);
+  }
 `, context);
 console.log('Legal-declaration checks passed.');

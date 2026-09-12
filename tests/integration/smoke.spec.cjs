@@ -318,16 +318,26 @@ test('response selections stay local; ace counters, explicit acceptance and draw
   await expect(page.locator('#pile-challenge, #move-accept')).toHaveCount(0);
 });
 
-test('the pile resolves starting aces and Accept resolves an empty-handed response', async ({ page }) => {
+test('starting aces allow normal play and Accept resolves an empty-handed response', async ({ page }) => {
   await load(page, { seed: 13 });
   const opening = await (await page.request.get('/api/state')).json();
-  expect(opening.skip_pending).toBe(true);
-  await expect(page.locator('#move-accept')).toHaveCount(0);
-  await page.locator('#pile-skip').click();
+  expect([opening.top, opening.opening_card, opening.skip_pending]).toEqual(['AD', true, false]);
+  await expect(page.locator('#move-accept, #pile-skip')).toHaveCount(0);
+  await expect(page.locator('#declare-AH')).toBeEnabled();
+  await expect(page.locator('#declare-8H')).toBeDisabled();
+  await pick(page, '10D');
+  await expect(page.locator('#play-truthful')).toBeEnabled();
+  await expect(page.locator('#pile-draw')).toHaveAttribute('title', 'Draw 1 card and end turn');
+  await page.locator('#pile-draw').click();
   await ready(page);
-  const passed = await (await page.request.get('/api/state')).json();
-  expect([passed.version, passed.turn, passed.skip_pending]).toEqual([opening.version + 1, 1, false]);
-  expect(passed.hands).toEqual(opening.hands);
+  const drawn = await (await page.request.get('/api/state')).json();
+  expect([drawn.version, drawn.turn, drawn.opening_card, drawn.skip_pending]).toEqual([opening.version + 1, 1, true, false]);
+  expect(drawn.hands[0]).toHaveLength(opening.hands[0].length + 1);
+  await pick(page, 'KD', 1);
+  await page.locator('#play-truthful').click();
+  await ready(page);
+  const played = await (await page.request.get('/api/state')).json();
+  expect([played.top, played.opening_card, played.skip_pending, played.draw_penalty]).toEqual(['KD', false, false, 0]);
 
   await load(page, { count: 30 }, '/api/debug/max-hand');
   await pick(page, '7H');
@@ -354,4 +364,37 @@ test('the pile resolves starting aces and Accept resolves an empty-handed respon
   const finished = await (await page.request.get('/api/state')).json();
   expect([finished.version, finished.winner]).toEqual([empty.version + 1, 1]);
   expect(finished.hands).toEqual(empty.hands);
+});
+
+
+test('opening penalties are optional, but a first seven stacks and a failed challenge adds two', async ({ page }) => {
+  for (const [seed, top, actual] of [[30, '7S', '10D'], [98, 'KS', 'AC']]) {
+    await load(page, { seed });
+    const opening = await (await page.request.get('/api/state')).json();
+    expect([opening.top, opening.opening_card, opening.draw_penalty]).toEqual([top, true, 0]);
+    await expect(page.locator('#pile-draw')).toHaveAttribute('title', 'Draw 1 card and end turn');
+    await pick(page, actual);
+    await page.locator('#declare-8S').click();
+    await page.locator('#play-card').click();
+    await ready(page);
+    const played = await (await page.request.get('/api/state')).json();
+    expect([played.top, played.opening_card, played.draw_penalty]).toEqual(['8S', false, 0]);
+  }
+  for (const [action, count] of [['draw', 4], ['challenge', 6]]) {
+    await load(page, { seed: 103 });
+    const opening = await (await page.request.get('/api/state')).json();
+    expect(opening.top).toBe('7H');
+    await pick(page, '7S');
+    await page.locator('#declare-7S').click();
+    await expect(page.locator('#play-reason')).toHaveText('Starts a 4-card penalty if accepted.');
+    await page.locator('#play-truthful').click();
+    await ready(page);
+    const pending = await (await page.request.get('/api/state')).json();
+    expect([pending.draw_penalty, pending.opening_card]).toEqual([4, false]);
+    await page.locator(`#pile-${action}`).click();
+    await ready(page);
+    const resolved = await (await page.request.get('/api/state')).json();
+    expect(resolved.hands[1]).toHaveLength(pending.hands[1].length + count);
+    expect(resolved.move_explain.drawn).toEqual([0, count]);
+  }
 });

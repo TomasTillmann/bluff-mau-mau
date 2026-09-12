@@ -33,7 +33,6 @@ function hand(player) {
 }
 
 function drawPileAction() {
-  // A starting ace has no declaration to accept, so the pile still offers its pass.
   return ['draw', 'skip'].map(type => state.legal_moves.find(move => move.type === type)).find(Boolean);
 }
 
@@ -106,8 +105,11 @@ function playReason() {
 
 function declarationEffect() {
   if (!declared) return '';
-  if (rank(declared) === '7') return 'Adds a 2-card penalty if accepted.';
-  if (declared === 'KS') return 'Adds a 4-card penalty if accepted.';
+  if (rank(declared) === '7' || declared === 'KS') {
+    const added = declared === 'KS' ? 4 : 2;
+    const opening = state.opening_card ? (state.top === 'KS' ? 4 : rank(state.top) === '7' ? 2 : 0) : 0;
+    return opening ? `Starts a ${opening + added}-card penalty if accepted.` : `Adds a ${added}-card penalty if accepted.`;
+  }
   if (rank(declared) === 'A') return 'Passes a skip to the opponent if accepted.';
   if (rank(declared) === 'Q') return 'Sets the continuing suit if accepted.';
   return 'No special effect if accepted.';

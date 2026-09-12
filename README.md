@@ -29,7 +29,7 @@ or disk; reloading any tab resets the shared debug game.
 
 Both hands stay visible in fixed seats. Make the active player's decisions,
 including playing any actual card as a legal declaration, selecting a queen's
-continuing suit, drawing, passing, and challenging. Declaration tiles show rank
+continuing suit, drawing, accepting, and challenging. Declaration tiles show rank
 and suit; unavailable declarations are dimmed and disabled. Play and Play as
 itself send only an exact move offered by the engine. Empty hands stay provisional until the engine
 confirms a winner. New game deals a fresh game with Player 1 (the bottom seat) starting. This iteration is a local debug
@@ -39,8 +39,10 @@ Click the draw stack to draw, or the facedown discard to challenge while a
 response is pending. Selecting cards, declarations, or suits leaves that response
 open. Submitting Play or Play as itself, or drawing from the stack, implicitly
 accepts the previous claim in one engine move. Accept declaration also accepts
-explicitly; accepting an ace skips automatically, without drawing. A starting
-ace has no pending declaration, so the draw stack offers its skip instead.
+explicitly; accepting a played ace skips automatically, without drawing.
+Starting cards have no forced effect: use normal matching (or any declaration
+on a starting queen), or draw one. Starting sevens and K♠ contribute only when
+the first play starts a draw penalty.
 
 MoveExplain keeps the last public result directly below Player 1’s hand, always
 using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts
