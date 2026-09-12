@@ -9,28 +9,29 @@
 .game-move-explain__title { margin: 0 0 4px; color: var(--bp-paper); font: 500 18px/1.3 var(--bp-font-display); }
 .game-move-explain__detail { margin: 0; color: var(--bp-table-muted); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
 .game-seat .bp-hand-label { margin-bottom: 0; }
-.game-hand-scroll { overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 44px; scrollbar-color: var(--bp-table-muted) var(--bp-table); }
-.game-hands { display: flex; justify-content: center; width: max-content; min-width: 100%; gap: 24px; }
-.game-fan.bp-hand { flex: none; padding: 28px 44px 38px; }
-.game-fan .bp-card { --bp-card-width: 105px; }
-.game-fan .bp-card + .bp-card { margin-left: calc(var(--bp-card-width) * -.4); }
+.game-hand-scroll { --game-hand-gutter: 32px; container-type: inline-size; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: var(--game-hand-gutter); scrollbar-color: var(--bp-table-muted) var(--bp-table); }
+/* Compress one continuous fan until only readable corner indices remain, then scroll. */
+.game-fan.bp-hand { --bp-card-width: 105px; --game-card-step: clamp(calc(var(--bp-card-width) * .26), calc((100cqw - 2 * var(--game-hand-gutter) - var(--bp-card-width)) / var(--game-card-gaps)), calc(var(--bp-card-width) * .42)); width: max-content; min-width: 100%; padding: 28px var(--game-hand-gutter) 30px; }
+.game-fan .bp-card { --bp-card-width: inherit; }
+.game-fan .bp-card + .bp-card { margin-left: calc(var(--game-card-step) - var(--bp-card-width)); }
 .game-fan .bp-card:disabled { opacity: 1; cursor: default; }
 /* Keep hit areas still: only the artwork lifts, so moving across a card cannot retrigger hover. */
-.game-fan button.bp-card { transform: none; background: transparent; box-shadow: none; }
+.game-fan button.bp-card { transform: translateY(var(--bp-fan-drop)) rotate(var(--bp-fan-angle)); background: transparent; box-shadow: none; transition: none; }
 .game-fan button.bp-card:is(:hover, :focus-visible, [aria-pressed="true"]) { z-index: auto; box-shadow: none; outline: none; }
-.game-fan button.bp-card img { pointer-events: none; box-shadow: var(--bp-card-shadow); transform: translateY(calc(var(--bp-fan-drop) + var(--bp-card-lift))) rotate(var(--bp-fan-angle)); transform-origin: 50% 90%; transition: transform 260ms var(--bp-ease), box-shadow 260ms var(--bp-ease); }
+.game-fan button.bp-card img { pointer-events: none; box-shadow: var(--bp-card-shadow); transform: translateY(var(--bp-card-lift)); transform-origin: 50% 90%; transition: transform 260ms var(--bp-ease), box-shadow 260ms var(--bp-ease); }
 .game-fan button.bp-card:is(:hover:not(:disabled), :focus-visible, [aria-pressed="true"]) img { box-shadow: var(--bp-card-shadow-raised); }
 .game-fan button.bp-card[aria-pressed="true"] img { outline: 3px solid var(--bp-paper); outline-offset: 3px; }
 .game-fan button.bp-card:focus-visible { z-index: 20; }
 .game-fan button.bp-card:focus-visible img { outline: 3px dashed var(--bp-paper); outline-offset: 3px; }
 .game-preset { max-width: 164px; font: inherit; }
-.game-hand-hint { margin: -12px 0 6px; color: var(--bp-table-muted); text-align: center; font-size: 12px; }
 .game-empty-hand { display: grid; place-items: center; min-height: 172px; margin: 0; color: var(--bp-table-muted); font: 500 22px/1.3 var(--bp-font-display); text-align: center; }
 .game-table .bp-piles { gap: 28px; padding: 8px 12px; }
 .game-table .bp-pile__cards { --bp-card-width: 86px; }
 .game-table .bp-pile__count { margin-left: 0; }
 .game-table .game-pile-action { pointer-events: auto; transform: none; background: transparent; box-shadow: none; }
 .game-table .game-pile-action:is(:hover, :focus-visible) { transform: none; box-shadow: none; }
+/* Backing cards extend left and below the top card; keep those edges clickable too. */
+.bp-card + .game-pile-action::before { content: ""; position: absolute; inset: 0 0 -10px -12px; }
 .game-pile-action img { pointer-events: none; box-shadow: var(--bp-card-shadow); transform-origin: 50% 85%; transition: transform 260ms var(--bp-ease), box-shadow 260ms var(--bp-ease); }
 .game-pile-action:is(:hover:not(:disabled), :focus-visible) img { transform: translateY(-10px) rotate(-4deg); box-shadow: var(--bp-card-shadow-raised); }
 .game-pile-action[data-action="challenge"]:is(:hover:not(:disabled), :focus-visible) img { transform: translateY(-8px) rotate(5deg); }
@@ -79,19 +80,19 @@
 }
 @media (min-width: 1600px) {
   .game-layout { grid-template-columns: minmax(0, 1fr) 500px; }
-  .game-fan .bp-card { --bp-card-width: 124px; }
+  .game-fan.bp-hand { --bp-card-width: 124px; }
 }
 @media (max-width: 1100px) {
   .game-layout { grid-template-columns: minmax(0, 1fr) 444px; }
   .game-table { padding-inline: 16px; }
-  .game-fan .bp-card { --bp-card-width: 90px; }
+  .game-fan.bp-hand { --bp-card-width: 90px; }
   .game-table .bp-piles { gap: 22px; }
   .game-table .bp-declared { min-width: 144px; }
   .game-panel { padding-inline: 20px; }
 }
 @media (min-width: 881px) and (max-height: 940px) {
   .game-table { gap: 8px; padding-block: 12px; }
-  .game-fan .bp-card { --bp-card-width: 76px; }
+  .game-fan.bp-hand { --bp-card-width: 76px; }
   .game-table .bp-pile__cards { --bp-card-width: 72px; }
   .game-table .bp-effects { margin-block: 4px; }
 }
@@ -106,9 +107,8 @@
   .bp-debug { font-size: 12px; }
   .bp-topbar__actions { gap: 8px; }
   .game-table { padding-inline: 10px; }
-  .game-hand-scroll { scroll-padding-inline: 36px; }
-  .game-fan.bp-hand { padding: 28px 36px 34px; }
-  .game-fan .bp-card { --bp-card-width: 76px; }
+  .game-hand-scroll { --game-hand-gutter: 24px; }
+  .game-fan.bp-hand { --bp-card-width: 76px; }
   .game-table .bp-piles { gap: 16px 24px; }
   .game-table .bp-pile__cards { --bp-card-width: 72px; }
   .game-table .bp-declared { min-width: 136px; padding: 12px; }

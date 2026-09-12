@@ -25,15 +25,11 @@ const pluralCards = count => `${count} ${count === 1 ? 'card' : 'cards'}`;
 function hand(player) {
   const cards = state.hands[player];
   const canSelect = state.turn === player && state.winner === null;
-  const groups = [];
-  for (let start = 0; start < cards.length; start += 7) {
-    const group = cards.slice(start, start + 7);
-    groups.push(`<div class="bp-hand game-fan">${group.map((card, index) => {
-      const position = group.length === 1 ? 0 : (index / (group.length - 1)) * 2 - 1;
-      return `<button id="hand-${player}-${card}" type="button" class="bp-card" style="--bp-fan-angle:${position * 12}deg;--bp-fan-drop:${position * position * 18}px" aria-label="${cardName(card)}${canSelect ? state.phase === 'response' ? ', accept declaration and select actual card' : ', select actual card' : ''}" aria-pressed="${canSelect && card === actual}" data-card="${card}" ${!canSelect || busy ? 'disabled' : ''}>${cardImage(card)}</button>`;
-    }).join('')}</div>`);
-  }
-  return `<section class="game-seat" aria-labelledby="player-${player}"><h2 id="player-${player}" class="bp-hand-label"><strong>${playerName(player)}</strong>${state.winner === null && player === state.turn ? `<span class="bp-hand-label__turn">${state.phase === 'response' ? 'Responding' : 'To act'}</span>` : ''}<span class="bp-hand-label__count">${pluralCards(cards.length)}</span></h2>${cards.length ? `<div class="game-hand-scroll" data-scroll="hand-${player}" ${cards.length > 5 ? `tabindex="0" role="region" aria-label="${playerName(player)} hand, scroll to see all ${cards.length} cards"` : ''}><div class="game-hands">${groups.join('')}</div></div>${cards.length > 5 ? '<p class="game-hand-hint">Scroll across to see the whole hand.</p>' : ''}` : `<p class="game-empty-hand">${state.winner === player ? 'Out — game won' : 'Empty hand'}</p>`}</section>`;
+  const fan = cards.map((card, index) => {
+    const position = cards.length === 1 ? 0 : (index / (cards.length - 1)) * 2 - 1;
+    return `<button id="hand-${player}-${card}" type="button" class="bp-card" style="--bp-fan-angle:${position * 7}deg;--bp-fan-drop:${position * position * 12}px" aria-label="${cardName(card)}${canSelect ? state.phase === 'response' ? ', accept declaration and select actual card' : ', select actual card' : ''}" aria-pressed="${canSelect && card === actual}" data-card="${card}" ${!canSelect || busy ? 'disabled' : ''}>${cardImage(card)}</button>`;
+  }).join('');
+  return `<section class="game-seat" aria-labelledby="player-${player}"><h2 id="player-${player}" class="bp-hand-label"><strong>${playerName(player)}</strong>${state.winner === null && player === state.turn ? `<span class="bp-hand-label__turn">${state.phase === 'response' ? 'Responding' : 'To act'}</span>` : ''}<span class="bp-hand-label__count">${pluralCards(cards.length)}</span></h2>${cards.length ? `<div class="game-hand-scroll" data-scroll="hand-${player}" tabindex="0" role="region" aria-label="${playerName(player)} hand, ${pluralCards(cards.length)}"><div class="bp-hand game-fan" style="--game-card-gaps:${Math.max(1, cards.length - 1)}">${fan}</div></div>` : `<p class="game-empty-hand">${state.winner === player ? 'Out — game won' : 'Empty hand'}</p>`}</section>`;
 }
 
 function turnActions() {

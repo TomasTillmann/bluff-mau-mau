@@ -54,7 +54,12 @@ card deck and its CC0 license are preserved in `free-playing-cards/`.
 Run `python3 -B -m unittest test_move_explain test_server` for explanation,
 bridge, and HTTP boundary checks. The blind MoveExplain test author worked from
 the public contract, rules, and engine without access to the implementation.
-Browser interaction checks are manual; this implementation adds no Playwright UI tests.
+Run `node test_truthful_play.cjs` for the truthful-play shortcut checks.
+For the small Chrome sanity suite, run `npm --prefix tests/integration ci` once,
+then `npm --prefix tests/integration test`. It starts an isolated local server
+and checks pile hover/clicks, bluff calls for both players, stable panel positions,
+and maximum-hand access. See [tests/integration/AGENTS.md](tests/integration/AGENTS.md)
+for the deliberately lightweight testing scope.
 
 ## API
 

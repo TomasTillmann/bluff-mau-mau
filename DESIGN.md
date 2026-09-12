@@ -56,7 +56,7 @@ Small UI suit marks are consistent SVG shapes with `class="bp-suit"` and `fill="
 
 Use real headings appropriate to the specimen's hierarchy. Field titles can be headings, labels, or legends as their semantics require. Every clickable example uses a native button; never attach clicks to an image or a generic div. Use `aria-pressed` on selection buttons, and supply a full readable name such as “Declare 7 of hearts”. A semantic table retains the declaration grid's suit/rank relationships. The grid scrolls inside its own wrapper at narrow widths to preserve 44px targets; do not disable or hide columns to make it fit.
 
-The shared five-card fan remains a simple specimen. The playable table uses groups of up to seven cards in a horizontal hand rail, keeping every card reachable up to the engine's 31-card maximum. The rail and fans reserve space for rotated edges and native focus scrolling (44px desktop, 36px mobile). Hand buttons remain stationary; their pointer-inert images lift and rotate over 260ms with the shared easing. Selection preserves existing hand elements and stacking. Keyboard focus can raise a card for visibility, and reduced motion removes transitions. Table height is independent of the action panel so queen controls cannot move the hand.
+The shared five-card fan remains a simple specimen. Each playable hand is one continuous shallow arc, with no card groups. CSS container-based spacing overlaps the complete card artwork, exposing each upper-left rank and suit; spacing compresses from 42% to 26% of card width before the rail scrolls. The rail reserves space for rotated edges and native focus scrolling (32px desktop, 24px mobile). Hand buttons keep their fixed arc positions; only their pointer-inert images lift over 260ms with the shared easing. Selection preserves existing hand elements and stacking so neighboring indices remain visible. Keyboard focus can raise a card for visibility, and reduced motion removes transitions. Table height is independent of the action panel so queen controls cannot move the hand.
 
 Player 2 stays above Player 1 in every phase. Both hands remain face up in this debug iteration. Queen continuation choices and Accept, Challenge, and Skip actions reuse the existing button and field styles. Every declaration remains selectable; only submission is governed by the engine’s exact legal-move list.
 
@@ -76,3 +76,7 @@ stable during selection; text can still grow rather than clip. Accept and Call
 bluff share the lower action area with Play/Draw so accepting through a hand card
 does not remove a separate block above the grid. At narrow widths the queen
 label moves above its four suit buttons.
+
+Card-layout references: [World of Card Games Hearts](https://worldofcardgames.com/hearts)
+and [Solitaire.org FreeCell](https://www.solitaire.org/free-cell/). Keep the complete
+card faces overlapped in one hand, exposing their printed corner indices.
