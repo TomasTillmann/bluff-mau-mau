@@ -45,6 +45,7 @@
 .game-pile-empty { display: grid; place-items: center; border: 1px dashed var(--bp-table-line); border-radius: 5%; color: var(--bp-table-muted); font-size: 12px; }
 .game-table .bp-declared { min-width: 160px; padding: 16px; }
 .game-table .bp-declared__title { margin: 0; }
+.game-declared-suit { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 6px 0 0; font-size: 14px; line-height: 20px; }
 .game-table .bp-effects { width: 100%; margin: 8px auto; }
 .game-pending-win { margin: 0; color: var(--bp-paper); text-align: center; font-size: 13px; }
 .game-winner { margin: 4px 0 12px; text-align: center; font: 500 32px/1.1 var(--bp-font-display); }

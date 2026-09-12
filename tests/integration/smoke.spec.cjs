@@ -131,6 +131,8 @@ test('both players can call a bluff by clicking a two- or three-layer discard', 
     await page.locator('#play-card').click();
     await ready(page);
     await expect(page.locator('#pile-challenge')).toBeEnabled();
+    if (declared === 'QC') await expect(page.locator('.game-declared-suit')).toHaveText('Now spades');
+    else await expect(page.locator('.game-declared-suit')).toHaveCount(0);
     const responseLayout = await page.evaluate(() => ({
       height: innerHeight, scrollHeight: document.documentElement.scrollHeight, scrollY,
       buttons: [...document.querySelectorAll('#play-card, #play-truthful, #move-accept')].map(button => {
@@ -152,6 +154,7 @@ test('both players can call a bluff by clicking a two- or three-layer discard', 
     await page.mouse.click(point.x, point.y);
     await ready(page);
     await expect(page.locator('#pile-challenge')).toHaveCount(0);
+    await expect(page.locator('.game-declared-suit')).toHaveCount(0);
     const state = await (await page.request.get('/api/state')).json();
     expect(state.move_explain.kind).toBe('bluff_caught');
     expect(state.move_explain.actor).toBe(1 - player);
