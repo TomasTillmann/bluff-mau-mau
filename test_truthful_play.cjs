@@ -26,6 +26,7 @@ vm.runInContext(`(async () => {
   receive(turn);
   assert.equal(actual, null);
   assert.match(shortcut(), /disabled/);
+  assert.doesNotMatch(panel(), /id="move-accept"/, 'No acceptance control without a pending declaration');
   select({ card: '7H' });
   assert.equal(finalPlay(actual), legal[0]);
   assert.doesNotMatch(shortcut(), /disabled/);
@@ -89,14 +90,29 @@ vm.runInContext(`(async () => {
   }
   assert.equal(finalPlay(), legal[1]);
   assert.doesNotMatch(shortcut(), /disabled/);
-  assert.doesNotMatch(panel(), /id="move-(accept|challenge|draw|skip)"/);
+  assert.match(panel(), /id="move-accept"[^>]*data-move="0"/);
+  assert.doesNotMatch(panel(), /id="move-(challenge|draw|skip)"/);
   assert.equal(select({ declared: '9D' }), false, 'Reject unavailable declaration intents');
   assert.equal(declared, 'QS');
   handlers.click({ target: { closest: () => ({ id: 'play-card', dataset: { move: '2' } }) } });
   assert.equal(sent[1].move_id, 2, 'Play submits the response move directly');
-  const pass = drawPileAction();
-  assert.equal(pass.type, 'accept', 'The pile offers acceptance when no draw or skip exists');
-  receive({ ...response, skip_pending: true });
+  assert.equal(drawPileAction(), undefined, 'Acceptance belongs to its explicit button, never the draw pile');
+  sent = null;
+  handlers.click({ target: { closest: () => ({ id: 'move-accept', dataset: { move: '0' } }) } });
+  assert.deepEqual(sent, ['/api/move', { version: 2, move_id: 0 }], 'Accept submits exactly the engine acceptance move');
+  busy = true;
+  assert.match(panel().match(/<button id="move-accept"[^>]*>/)[0], /disabled/);
+  busy = false;
+  receive({ ...response, skip_pending: true, legal_moves: [
+    { id: 0, type: 'accept' }, { id: 5, type: 'challenge' },
+    { id: 6, type: 'play', actual: 'QC', declared: 'AH', chosen_suit: null },
+  ] });
+  select({ card: 'QC' });
+  assert.match(shortcut(), /disabled/, 'A queen cannot be played as itself under an ace');
+  assert.doesNotMatch(panel(), /id="suit-label"/, 'An illegal truthful queen does not expose suit choices');
+  assert.equal(select({ declared: 'QS' }), false, 'No queen declaration is allowed under an ace');
+  select({ declared: 'AH' });
+  assert.equal(finalPlay().id, 6, 'The actual queen can still bluff as an ace');
   assert.match(actionLabel('accept'), /skip this turn/);
   request = realRequest;
   let requests = 0;

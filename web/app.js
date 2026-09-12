@@ -33,8 +33,8 @@ function hand(player) {
 }
 
 function drawPileAction() {
-  // The pile also resolves passes when an ace or empty hand prevents drawing.
-  return ['draw', 'skip', 'accept'].map(type => state.legal_moves.find(move => move.type === type)).find(Boolean);
+  // A starting ace has no declaration to accept, so the pile still offers its pass.
+  return ['draw', 'skip'].map(type => state.legal_moves.find(move => move.type === type)).find(Boolean);
 }
 
 function actionLabel(type) {
@@ -42,7 +42,7 @@ function actionLabel(type) {
   if (type === 'skip') return 'Skip turn under the ace';
   if (type === 'accept') {
     if (state.skip_pending && state.hands.some(hand => hand.length)) return 'Accept the ace and skip this turn';
-    if (state.draw_penalty) return `Accept and draw ${pluralCards(state.draw_penalty)}`;
+    if (state.draw_penalty && !state.hands[state.turn].length) return `Accept and draw ${pluralCards(state.draw_penalty)}`;
     return 'Accept declaration';
   }
   return `${state.phase === 'response' ? 'Accept and draw' : 'Draw'} ${pluralCards(state.draw_penalty || 1)} and end turn`;
@@ -91,12 +91,12 @@ function finalPlay(declaration = declared) {
 
 function playReason() {
   if (state.winner !== null) return 'This game is finished. Start a new game to play again.';
-  if (!state.hands[state.turn].length) return 'Click the discard to call bluff, or the draw pile to accept.';
+  if (!state.hands[state.turn].length) return 'Click the discard to call bluff, or accept the declaration.';
   if (!actual) return 'Choose an actual card from the active player’s hand.';
   if (!declared) return 'Choose the card identity to declare.';
   const matching = state.legal_moves.filter(move => move.type === 'play' && move.actual === actual && move.declared === declared);
   if (!matching.length) {
-    if (state.skip_pending) return 'Counter the ace with an ace or queen, or click the draw pile to pass.';
+    if (state.skip_pending) return state.phase === 'response' ? 'Counter with another ace, or accept the declaration to skip this turn.' : 'Counter with another ace, or click the draw pile to pass.';
     if (state.draw_penalty) return state.top === 'KS' ? 'Counter this king with 7 of spades or any queen.' : 'Use a seven, a queen, or king of spades on 7 of spades.';
     return `Match ${state.chosen_suit ? suits[state.chosen_suit] : `${suits[suit(state.top)]} or ${rankNames[rank(state.top)] || rank(state.top)}`}, or declare a queen.`;
   }
@@ -116,6 +116,7 @@ function declarationEffect() {
 function panel() {
   const move = finalPlay();
   const truthfulMove = finalPlay(actual);
+  const acceptMove = state.legal_moves.find(item => item.type === 'accept');
   const needsSuit = (declared && rank(declared) === 'Q') || (actual && rank(actual) === 'Q' && state.legal_moves.some(item => item.type === 'play' && item.actual === actual && item.declared === actual));
   const reason = playReason();
   const responding = state.phase === 'response';
@@ -130,7 +131,7 @@ function panel() {
     <button id="play-truthful" type="button" class="bp-button bp-button--secondary bp-button--wide game-truthful" ${truthfulMove ? `data-move="${truthfulMove.id}"` : ''} ${!truthfulMove || busy ? 'disabled' : ''}>Play ${actual ? `${cardMark(actual)} ` : ''}as itself</button>
     <p class="bp-play-summary">${actual && declared ? `Play ${cardMark(actual)} as ${cardMark(declared)}` : 'Choose your declaration'}</p>
     <p id="play-reason" class="game-play-reason" data-invalid="${!!declared && !!reason}">${escapeHTML(reason || declarationEffect())}</p>
-    <div class="bp-actions"><button id="play-card" type="button" class="bp-button bp-button--primary bp-button--wide" ${move ? `data-move="${move.id}"` : ''} ${reason ? 'aria-describedby="play-reason"' : ''} ${!move || busy ? 'disabled' : ''}>Play</button></div>
+    <div class="bp-actions"><button id="play-card" type="button" class="bp-button bp-button--primary bp-button--wide" ${move ? `data-move="${move.id}"` : ''} ${reason ? 'aria-describedby="play-reason"' : ''} ${!move || busy ? 'disabled' : ''}>Play</button>${acceptMove ? `<button id="move-accept" type="button" class="bp-button bp-button--secondary bp-button--wide" data-move="${acceptMove.id}" title="${escapeHTML(actionLabel('accept'))}" ${busy ? 'disabled' : ''}>Accept declaration</button>` : ''}</div>
     <section class="bp-history game-history" aria-labelledby="history-title"><h3 id="history-title" class="bp-history__title">Recent moves</h3>${state.history.length ? `<ol class="bp-history__list" reversed tabindex="0" aria-label="Recent moves">${state.history.slice(-6).reverse().map(item => `<li class="bp-history__row"><span class="bp-history__player">${item.player === null ? 'Table' : playerName(item.player)}</span><span>${escapeHTML(item.text)}</span></li>`).join('')}</ol>` : '<p class="game-history-empty">The cards are dealt. Make the first move.</p>'}</section>
   </aside>`;
 }

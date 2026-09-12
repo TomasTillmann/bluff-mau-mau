@@ -80,7 +80,8 @@
 .game-panel .bp-play-summary { min-height: 1.2em; margin-bottom: 4px; font-size: 21px; }
 .game-play-reason { min-height: 3em; margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--bp-muted); }
 .game-play-reason[data-invalid="true"] { color: var(--bp-red); }
-.game-panel > .bp-actions { grid-template-columns: 1fr; }
+.game-panel > .bp-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.game-panel > .bp-actions > :only-child { grid-column: 1 / -1; }
 .game-panel > .bp-actions .bp-button { min-height: 46px; padding: 8px; font-size: 14px; }
 .game-history { margin-top: 8px; }
 .game-history .bp-history__title { margin-bottom: 4px; }
@@ -142,7 +143,6 @@
   .game-panel .bp-actual__name { font-size: 14px; }
   .game-panel .bp-play-summary { font-size: 20px; }
   .game-play-reason { min-height: 4.5em; }
-  .game-panel > .bp-actions { grid-template-columns: 1fr; }
   .game-panel > .bp-actions .bp-button { min-height: 46px; }
 }
 

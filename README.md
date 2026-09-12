@@ -38,9 +38,9 @@ table; hidden-hand play and multiplayer are not included.
 Click the draw stack to draw, or the facedown discard to challenge while a
 response is pending. Selecting cards, declarations, or suits leaves that response
 open. Submitting Play or Play as itself, or drawing from the stack, implicitly
-accepts the previous claim in one engine move. When an ace or empty hand prevents
-drawing, the draw stack resolves the pass or acceptance instead; its tooltip
-describes the action. An accepted ace skips automatically, without drawing.
+accepts the previous claim in one engine move. Accept declaration also accepts
+explicitly; accepting an ace skips automatically, without drawing. A starting
+ace has no pending declaration, so the draw stack offers its skip instead.
 
 MoveExplain keeps the last public result directly below Player 1’s hand, always
 using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts

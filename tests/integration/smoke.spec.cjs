@@ -133,15 +133,15 @@ test('both players can call a bluff by clicking a two- or three-layer discard', 
     await expect(page.locator('#pile-challenge')).toBeEnabled();
     const responseLayout = await page.evaluate(() => ({
       height: innerHeight, scrollHeight: document.documentElement.scrollHeight, scrollY,
-      buttons: [...document.querySelectorAll('#play-card, #play-truthful')].map(button => {
+      buttons: [...document.querySelectorAll('#play-card, #play-truthful, #move-accept')].map(button => {
         const rect = button.getBoundingClientRect();
         return { id: button.id, top: rect.top + scrollY, bottom: rect.bottom + scrollY, width: rect.width, height: rect.height };
       }),
     }));
     expect(responseLayout.scrollHeight, 'Response history must not extend the page').toBeLessThanOrEqual(responseLayout.height);
     expect(responseLayout.scrollY, 'Responding must not require page scrolling').toBe(0);
-    expect(responseLayout.buttons).toHaveLength(2);
-    await expect(page.locator('#move-accept, #move-challenge, #move-draw, #move-skip')).toHaveCount(0);
+    expect(responseLayout.buttons).toHaveLength(3);
+    await expect(page.locator('#move-challenge, #move-draw, #move-skip')).toHaveCount(0);
     for (const box of responseLayout.buttons) {
       expect(box.top, `${box.id} starts above the viewport`).toBeGreaterThanOrEqual(0);
       expect(box.bottom, `${box.id} ends below the viewport`).toBeLessThanOrEqual(responseLayout.height);
@@ -254,7 +254,7 @@ test('reload clears play state, selections and finished debug presets', async ({
 });
 
 
-test('response selections stay local; playing, drawing and ace passes resolve once', async ({ page }) => {
+test('response selections stay local; ace counters, explicit acceptance and drawing resolve once', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await load(page);
   await pick(page, '10H');
@@ -263,20 +263,34 @@ test('response selections stay local; playing, drawing and ace passes resolve on
   await ready(page);
   const pending = await (await page.request.get('/api/state')).json();
   const positions = await panelPositions(page);
+  await pick(page, 'QH', 1);
+  await expect(page.locator('#play-truthful')).toBeDisabled();
+  await expect(page.locator('.game-suit')).toHaveCount(0);
+  for (const suit of ['H', 'D', 'C', 'S']) await expect(page.locator(`#declare-Q${suit}`)).toBeDisabled();
   await pick(page, 'JC', 1);
-  await page.locator('#declare-QS').click();
-  await page.locator('#suit-H').click();
+  await page.locator('#declare-AS').click();
   samePositions(positions, await panelPositions(page));
   expect((await (await page.request.get('/api/state')).json()).version).toBe(pending.version);
   await expect(page.locator('#pile-challenge')).toBeEnabled();
+  await expect(page.locator('#move-accept')).toBeEnabled();
+  await expect(page.locator('#pile-draw, #pile-accept')).toHaveCount(0);
   await expect(page.locator('#declare-9H')).toBeDisabled();
   await page.locator('#play-card').click();
   await ready(page);
   const countered = await (await page.request.get('/api/state')).json();
-  expect([countered.phase, countered.turn, countered.skip_pending, countered.top]).toEqual(['response', 0, false, 'QS']);
+  expect([countered.phase, countered.turn, countered.skip_pending, countered.top]).toEqual(['response', 0, true, 'AS']);
   expect(countered.version).toBe(pending.version + 1);
   expect(countered.move_explain.detail).toContain('Accepted ace of clubs');
-  await pick(page, 'QS');
+  await expect(page.locator('#move-accept')).toHaveText('Accept declaration');
+  await expect(page.locator('#move-accept')).toHaveAttribute('title', 'Accept the ace and skip this turn');
+  await page.locator('#move-accept').click();
+  await ready(page);
+  const skipped = await (await page.request.get('/api/state')).json();
+  expect([skipped.version, skipped.phase, skipped.turn, skipped.skip_pending]).toEqual([countered.version + 1, 'turn', 1, false]);
+  expect(skipped.hands).toEqual(countered.hands);
+  expect(skipped.move_explain.detail).toContain('skipped');
+  await expect(page.locator('#move-accept')).toHaveCount(0);
+  await pick(page, 'QH', 1);
   await page.locator('#suit-D').click();
   await page.locator('#play-truthful').click();
   await ready(page);
@@ -285,31 +299,30 @@ test('response selections stay local; playing, drawing and ace passes resolve on
   await ready(page);
   const drawn = await (await page.request.get('/api/state')).json();
   expect(drawn.version).toBe(beforeDraw.version + 1);
-  expect(drawn.hands[1]).toHaveLength(beforeDraw.hands[1].length + 1);
+  expect(drawn.hands[0]).toHaveLength(beforeDraw.hands[0].length + 1);
   expect(drawn.move_explain.kind).toBe('draw');
-  expect(drawn.move_explain.detail).toContain('Accepted queen of spades');
+  expect(drawn.move_explain.detail).toContain('Accepted queen of hearts');
   await expect(page.locator('#pile-challenge')).toHaveCount(0);
 
   await load(page);
   await pick(page, '10H');
-  await page.locator('#declare-AC').click();
+  await page.locator('#declare-8C').click();
   await page.locator('#play-card').click();
   await ready(page);
-  const ace = await (await page.request.get('/api/state')).json();
-  await expect(page.locator('#pile-accept')).toHaveAttribute('title', 'Accept the ace and skip this turn');
-  await page.locator('#pile-accept').click();
+  const ordinary = await (await page.request.get('/api/state')).json();
+  await page.locator('#move-accept').click();
   await ready(page);
-  const skipped = await (await page.request.get('/api/state')).json();
-  expect(skipped.version).toBe(ace.version + 1);
-  expect([skipped.turn, skipped.skip_pending]).toEqual([0, false]);
-  expect(skipped.hands).toEqual(ace.hands);
-  expect(skipped.move_explain.detail).toContain('skipped');
+  const accepted = await (await page.request.get('/api/state')).json();
+  expect([accepted.version, accepted.phase, accepted.turn]).toEqual([ordinary.version + 1, 'turn', 1]);
+  expect(accepted.hands).toEqual(ordinary.hands);
+  await expect(page.locator('#pile-challenge, #move-accept')).toHaveCount(0);
 });
 
-test('the pile resolves starting aces and an empty-handed response', async ({ page }) => {
+test('the pile resolves starting aces and Accept resolves an empty-handed response', async ({ page }) => {
   await load(page, { seed: 13 });
   const opening = await (await page.request.get('/api/state')).json();
   expect(opening.skip_pending).toBe(true);
+  await expect(page.locator('#move-accept')).toHaveCount(0);
   await page.locator('#pile-skip').click();
   await ready(page);
   const passed = await (await page.request.get('/api/state')).json();
@@ -323,7 +336,8 @@ test('the pile resolves starting aces and an empty-handed response', async ({ pa
   await page.locator('#play-card').click();
   await ready(page);
   await pick(page, 'AS', 1);
-  await page.locator('#play-truthful').click();
+  await page.locator('#declare-9S').click();
+  await page.locator('#play-card').click();
   await ready(page);
   await pick(page, '8H');
   await page.locator('#declare-QS').click();
@@ -333,8 +347,9 @@ test('the pile resolves starting aces and an empty-handed response', async ({ pa
   const empty = await (await page.request.get('/api/state')).json();
   expect(empty.hands[1]).toEqual([]);
   await expect(page.locator('#pile-challenge')).toBeEnabled();
-  await expect(page.locator('#pile-accept')).toHaveAttribute('title', 'Accept declaration');
-  await page.locator('#pile-accept').click();
+  await expect(page.locator('#pile-accept')).toHaveCount(0);
+  await expect(page.locator('#move-accept')).toHaveText('Accept declaration');
+  await page.locator('#move-accept').click();
   await ready(page);
   const finished = await (await page.request.get('/api/state')).json();
   expect([finished.version, finished.winner]).toEqual([empty.version + 1, 1]);
