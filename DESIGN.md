@@ -69,3 +69,10 @@ cards and spacing keep it in view. It always speaks from Player 1’s perspectiv
 uses public snapshots and actual hand-count differences (including shortages),
 and updates the existing polite live announcement. Selection preserves the strip;
 new games and debug presets clear it.
+
+The game action panel reserves intrinsic space for the actual-card preview, queen
+continuation row, and validation feedback. Keep declaration and submit positions
+stable during selection; text can still grow rather than clip. Accept and Call
+bluff share the lower action area with Play/Draw so accepting through a hand card
+does not remove a separate block above the grid. At narrow widths the queen
+label moves above its four suit buttons.
