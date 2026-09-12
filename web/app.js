@@ -146,7 +146,6 @@ function render(focusActor = false, focused = document.activeElement.id) {
   }
   game.setAttribute('aria-busy', String(busy));
   document.querySelector('#new-game').disabled = busy;
-  document.querySelector('#hand-preset').disabled = busy;
   for (const [key, left] of scrolls) document.querySelector(`[data-scroll="${key}"]`)?.scrollTo({ left });
   const target = focusActor ? document.querySelector('#actor') : document.getElementById(focused);
   if (target && !target.disabled) target.focus({ preventScroll: true });
@@ -183,7 +182,6 @@ async function request(path, body, intent = null) {
   error.hidden = true;
   game.setAttribute('aria-busy', 'true');
   document.querySelector('#new-game').disabled = true;
-  document.querySelector('#hand-preset').disabled = true;
   render();
   announcement.textContent = body ? 'Updating the table…' : 'Loading the table…';
   let success = false;
@@ -212,7 +210,6 @@ async function request(path, body, intent = null) {
     busy = false;
     game.setAttribute('aria-busy', 'false');
     document.querySelector('#new-game').disabled = false;
-    document.querySelector('#hand-preset').disabled = false;
     render(success && !selected && (!!body || focused === 'retry'), focused);
     if (!state) document.querySelector('#retry')?.focus();
   }
@@ -239,12 +236,6 @@ document.addEventListener('click', event => {
     const accept = state.legal_moves.find(item => item.type === 'accept');
     if (accept) return void request('/api/move', { version: state.version, move_id: accept.id }, { ...intent });
   } else if (select(intent)) render();
-});
-
-document.querySelector('#hand-preset').addEventListener('change', event => {
-  const count = Number(event.target.value);
-  event.target.value = '';
-  if (count) void request('/api/debug/max-hand', { count });
 });
 
 request('/api/new', {});

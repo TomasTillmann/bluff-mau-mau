@@ -25,7 +25,6 @@
 .game-fan button.bp-card[aria-pressed="true"] img { outline: 3px solid var(--bp-paper); outline-offset: 3px; }
 .game-fan button.bp-card:focus-visible { z-index: 20; }
 .game-fan button.bp-card:focus-visible img { outline: 3px dashed var(--bp-paper); outline-offset: 3px; }
-.game-preset { max-width: 164px; font: inherit; }
 .game-empty-hand { display: grid; place-items: center; min-height: 172px; margin: 0; color: var(--bp-table-muted); font: 500 22px/1.3 var(--bp-font-display); text-align: center; }
 .game-table .bp-piles { gap: 28px; padding: 8px 12px; }
 .game-table .bp-pile { position: relative; }

@@ -13,14 +13,18 @@ async function load(page, data = { seed: 0 }, endpoint = '/api/new') {
   await page.unroute('**/api/new');
   const seedData = endpoint === '/api/new' ? data : { seed: 0 };
   await page.route('**/api/new', route => route.continue({ postData: JSON.stringify(seedData) }));
-  const started = page.waitForResponse(response => response.url().endsWith('/api/new') && response.request().method() === 'POST');
+  if (endpoint !== '/api/new') {
+    // Redirect only this startup request; subsequent reloads still create a fresh game.
+    await page.route('**/api/new', route => route.continue({
+      url: new URL(endpoint, route.request().url()).href,
+      postData: JSON.stringify(data),
+    }), { times: 1 });
+  }
+  const started = page.waitForResponse(response => response.url().endsWith(endpoint) && response.request().method() === 'POST');
   await page.goto('/');
   expect((await started).ok()).toBeTruthy();
   await ready(page);
-  if (endpoint === '/api/debug/max-hand') {
-    await page.locator('#hand-preset').selectOption(String(data.count));
-    await ready(page);
-  }
+  await expect(page.locator('#hand-preset')).toHaveCount(0);
   await page.evaluate(async () => {
     await document.fonts.ready;
     await Promise.all([...document.images].map(image => image.decode()));
@@ -226,7 +230,6 @@ test('reload clears play state, selections and finished debug presets', async ({
     await expect(page.getByLabel('Last move', { exact: true })).toHaveText('');
     await expect(page.locator('.game-history .bp-history__row')).toHaveCount(1);
     await expect(page.locator('.game-history')).toContainText('New game.');
-    await expect(page.locator('#hand-preset')).toHaveValue('');
   }
   await load(page);
   await pick(page, '10H');
@@ -243,8 +246,7 @@ test('reload clears play state, selections and finished debug presets', async ({
   await expect(page.locator('#declare-QH')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#suit-S')).toHaveAttribute('aria-pressed', 'true');
   await reloadFresh();
-  await page.locator('#hand-preset').selectOption('31');
-  await ready(page);
+  await load(page, { count: 31 }, '/api/debug/max-hand');
   await expect(page.locator('.game-winner')).toBeVisible();
   await reloadFresh();
 });

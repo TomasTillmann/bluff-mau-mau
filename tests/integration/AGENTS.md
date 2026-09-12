@@ -17,8 +17,10 @@ instead of `test` to watch Chrome. The suite starts its own local game server on
 port 18767 and stops it afterward; do not run it against the user's game on 8767.
 Run serially because the debug server has one shared game. Each page load deals
 through POST /api/new. Seed that real startup request with route.continue and
-postData; keep the server response real. Load stress hands through the actual
-preset dropdown. Do not mock legal moves or replace app event handlers.
+postData; keep the server response real. Load stress hands by redirecting only
+the first startup request to the real /api/debug/max-hand endpoint with
+route.continue. Later reloads must still call /api/new and reset the game.
+Do not mock legal moves or replace app event handlers.
 
 Test rendered behavior, not the presence of CSS declarations. Use real hover
 and clicks without `force`, including the visible edges of a card stack. Check

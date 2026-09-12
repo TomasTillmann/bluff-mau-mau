@@ -46,9 +46,9 @@ come from actual hand-count changes, including shortages and recycled cards.
 The result survives selections and failed moves; a reload, new game, or debug
 preset clears it. Hidden card identities are never used in its explanations.
 
-Use **Stress hand…** to inspect 30 playable cards or the 31-card finished
-maximum. A discard must always remain, so 32 cards cannot fit in one hand.
-The 31-card preset uses a real engine draw that confirms the empty opponent’s win.
+Integration checks cover 30 playable cards and the 31-card finished maximum.
+A discard must always remain, so 32 cards cannot fit in one hand.
+The 31-card fixture uses a real engine draw that confirms the empty opponent’s win.
 
 The shared visual components remain in `design-system/`; open
 <http://127.0.0.1:8767/design-system/index.html> for the component study. The supplied
