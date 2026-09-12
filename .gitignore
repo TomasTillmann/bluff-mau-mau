@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .playwright-cli/
 design-system/qa/
+runs/

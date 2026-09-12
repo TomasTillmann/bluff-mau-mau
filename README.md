@@ -229,3 +229,46 @@ without reading or importing the old or new bot implementation. The integration
 run checks those tests against the code afterward; original game and web tests
 remain separate. Test provenance and audit evidence are recorded in
 [docs/baseline-verification.md](docs/baseline-verification.md).
+
+## Persistent arena
+
+Play all 1,333 baseline configurations against each other with parallel workers:
+
+```sh
+python3 -B -m src.engines.arena --rounds 50 --workers 8
+```
+
+This is 66,600 games, about 100 per bot. Each scheduled opponent is played twice
+with the same deal and exchanged seats. Opponents follow a seeded, shuffled circle
+schedule without repetitions until every opponent has been met. For a quick
+comparison of just the three default bots, 75 rounds gives each exactly 100 games:
+
+```sh
+python3 -B -m src.engines.arena --roster basic --rounds 75 --workers 4
+```
+
+Each run prints its directory under `runs/<date-and-time>-arena/`. It keeps an
+`arena.sqlite3` database and a full sorted `leaderboard.csv`. Ratings start at
+**1000, K=20**. The table ranks by `(wins + draws/2) / games`, then games and wins,
+then name; Elo is displayed alongside the W/D/L counts. A game reaching the
+1,000-decision limit is explicitly scored as an arena draw, not a rules-engine
+win or natural draw. Change that limit with `--max-decisions` on a new run.
+
+Stop with Ctrl-C, then continue or inspect the same directory:
+
+```sh
+python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --workers 8
+python3 -B -m src.engines.arena --status runs/EXACT-RUN-DIRECTORY --top 30
+python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --rounds 100
+```
+
+The round target is total, so the last command extends a 50-round run to 100.
+Worker count may change. Completed pairs and their rating updates survive a crash;
+uncommitted pairs replay with the original seeds. Elo is applied in schedule
+order, so worker timing and restarts do not change the result. Read-only status
+uses the database even if a forced kill left the CSV behind. Resume refuses a
+changed game/policy implementation or Python version to avoid mixing results.
+
+These are preliminary comparisons: roughly 100 games do not reliably distinguish
+all 1,333 configurations. See [docs/arena.md](docs/arena.md) for the scoring,
+scheduling, persistence, and Python API contract. Arena tests are in `tests/arena/`.
