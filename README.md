@@ -14,6 +14,48 @@ next_state = Play(pending, Accept())
 assert state == NewGame(seed=42, dealer=0)  # The input was not modified.
 ```
 
+## Playable debug table
+
+```sh
+git submodule update --init free-playing-cards
+python3 -B server.py
+```
+
+Open <http://127.0.0.1:8767/> in Chrome. Use `--port NUMBER` to choose another
+local port. The server uses only Python's standard library and holds one shared
+game in memory; reloading keeps that game, while restarting the server deals again.
+
+Both hands stay visible in fixed seats. Make the active player's decisions,
+including playing any actual card as a legal declaration, selecting a queen's
+continuing suit, drawing, skipping, accepting, and challenging. Every declaration
+tile is selectable; the Play button explains unavailable combinations and sends
+only a move offered by the engine. Empty hands stay provisional until the engine
+confirms a winner. New game deals a fresh game with Player 1 (the bottom seat) starting. This iteration is a local debug
+table; hidden-hand play and multiplayer are not included.
+
+Click the draw stack to draw, or the facedown discard to challenge while a
+response is pending. Selecting a hand card or declaration, or choosing Draw/Skip,
+accepts the pending claim first. The next action uses the engine’s returned turn;
+forced returns and finished games stop the sequence. Hovering or scrolling never accepts.
+
+MoveExplain keeps the last public result directly below Player 1’s hand, always
+using Player 1’s perspective ("you"), even when controlling Player 2. Draw counts
+come from actual hand-count changes, including shortages and recycled cards.
+The result survives reloads, selections, and failed moves; a new game or debug
+preset clears it. Hidden card identities are never used in its explanations.
+
+Use **Stress hand…** to inspect 30 playable cards or the 31-card finished
+maximum. A discard must always remain, so 32 cards cannot fit in one hand.
+The 31-card preset uses a real engine draw that confirms the empty opponent’s win.
+
+The shared visual components remain in `design-system/`; open
+<http://127.0.0.1:8767/design-system/index.html> for the component study. The supplied
+card deck and its CC0 license are preserved in `free-playing-cards/`.
+Run `python3 -B -m unittest test_move_explain test_server` for explanation,
+bridge, and HTTP boundary checks. The blind MoveExplain test author worked from
+the public contract, rules, and engine without access to the implementation.
+Browser interaction checks are manual; this implementation adds no Playwright UI tests.
+
 ## API
 
 - `MoveGenerator(state) -> list[Move]`: all legal actions for `state.turn`, in

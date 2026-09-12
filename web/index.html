@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#174d3a">
+  <title>Blafovací Prší — Debug table</title>
+  <link rel="stylesheet" href="/design-system/components.css">
+  <link rel="stylesheet" href="/web/app.css">
+  <script src="/web/app.js" defer></script>
+</head>
+<body>
+  <svg class="game-symbols" aria-hidden="true"><defs>
+    <symbol id="suit-hearts" viewBox="0 0 24 24"><path d="M12 21C-5 10 3-3 12 5C21-3 29 10 12 21Z"/></symbol>
+    <symbol id="suit-diamonds" viewBox="0 0 24 24"><path d="M12 1L22 12L12 23L2 12Z"/></symbol>
+    <symbol id="suit-clubs" viewBox="0 0 24 24"><path d="M10 16C-2 22-2 5 8 9C2-4 22-4 16 9C26 5 26 22 14 16L17 23H7Z"/></symbol>
+    <symbol id="suit-spades" viewBox="0 0 24 24"><path d="M12 1C8 6 1 9 1 15C1 20 7 21 11 17L8 23H16L13 17C17 21 23 20 23 15C23 9 16 6 12 1Z"/></symbol>
+  </defs></svg>
+  <header class="bp-topbar">
+    <h1 class="bp-brand"><svg class="bp-brand__mark" viewBox="0 0 24 24" aria-hidden="true"><use href="#suit-clubs"/></svg><span class="bp-sr-only">Blafovací Prší</span></h1>
+    <div class="bp-topbar__actions"><span class="bp-debug"><strong>DEBUG</strong> Both hands visible</span><select id="hand-preset" class="bp-button bp-button--secondary bp-button--compact game-preset" aria-label="Load debug hand preset"><option value="">Stress hand…</option><option value="30">30 cards · playable</option><option value="31">31 cards · finished</option></select><button id="new-game" type="button" class="bp-button bp-button--secondary bp-button--compact">New game</button></div>
+  </header>
+  <p id="announcement" class="bp-sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+  <div id="error" class="game-error" role="alert" hidden></div>
+  <main id="game" class="game-layout" aria-busy="true"><p class="game-loading">Dealing the cards…</p></main>
+  <noscript><p class="game-loading">Enable JavaScript to play at this table.</p></noscript>
+</body>
+</html>

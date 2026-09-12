@@ -1,0 +1,114 @@
+/* Game layout extends the approved bp component system. */
+.game-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.bp-brand { margin: 0; }
+.game-layout { display: grid; grid-template-columns: minmax(0, 1fr) 472px; align-items: stretch; background: var(--bp-table); }
+.game-loading { padding: 48px 28px; }
+.game-table { min-width: 0; min-height: calc(100dvh - 85px); align-self: start; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 24px; }
+.game-seat, .game-player-result { min-width: 0; }
+.game-move-explain { min-height: 76px; max-width: 64ch; margin-inline: auto; padding: 12px 8px 0; text-align: center; }
+.game-move-explain__title { margin: 0 0 4px; color: var(--bp-paper); font: 500 18px/1.3 var(--bp-font-display); }
+.game-move-explain__detail { margin: 0; color: var(--bp-table-muted); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+.game-seat .bp-hand-label { margin-bottom: 0; }
+.game-hand-scroll { overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 44px; scrollbar-color: var(--bp-table-muted) var(--bp-table); }
+.game-hands { display: flex; justify-content: center; width: max-content; min-width: 100%; gap: 24px; }
+.game-fan.bp-hand { flex: none; padding: 28px 44px 38px; }
+.game-fan .bp-card { --bp-card-width: 105px; }
+.game-fan .bp-card + .bp-card { margin-left: calc(var(--bp-card-width) * -.4); }
+.game-fan .bp-card:disabled { opacity: 1; cursor: default; }
+/* Keep hit areas still: only the artwork lifts, so moving across a card cannot retrigger hover. */
+.game-fan button.bp-card { transform: none; background: transparent; box-shadow: none; }
+.game-fan button.bp-card:is(:hover, :focus-visible, [aria-pressed="true"]) { z-index: auto; box-shadow: none; outline: none; }
+.game-fan button.bp-card img { pointer-events: none; box-shadow: var(--bp-card-shadow); transform: translateY(calc(var(--bp-fan-drop) + var(--bp-card-lift))) rotate(var(--bp-fan-angle)); transform-origin: 50% 90%; transition: transform 260ms var(--bp-ease), box-shadow 260ms var(--bp-ease); }
+.game-fan button.bp-card:is(:hover:not(:disabled), :focus-visible, [aria-pressed="true"]) img { box-shadow: var(--bp-card-shadow-raised); }
+.game-fan button.bp-card[aria-pressed="true"] img { outline: 3px solid var(--bp-paper); outline-offset: 3px; }
+.game-fan button.bp-card:focus-visible { z-index: 20; }
+.game-fan button.bp-card:focus-visible img { outline: 3px dashed var(--bp-paper); outline-offset: 3px; }
+.game-preset { max-width: 164px; font: inherit; }
+.game-hand-hint { margin: -12px 0 6px; color: var(--bp-table-muted); text-align: center; font-size: 12px; }
+.game-empty-hand { display: grid; place-items: center; min-height: 172px; margin: 0; color: var(--bp-table-muted); font: 500 22px/1.3 var(--bp-font-display); text-align: center; }
+.game-table .bp-piles { gap: 28px; padding: 8px 12px; }
+.game-table .bp-pile__cards { --bp-card-width: 86px; }
+.game-table .bp-pile__count { margin-left: 0; }
+.game-table .game-pile-action { pointer-events: auto; transform: none; background: transparent; box-shadow: none; }
+.game-table .game-pile-action:is(:hover, :focus-visible) { transform: none; box-shadow: none; }
+.game-pile-action img { pointer-events: none; box-shadow: var(--bp-card-shadow); transform-origin: 50% 85%; transition: transform 260ms var(--bp-ease), box-shadow 260ms var(--bp-ease); }
+.game-pile-action:is(:hover:not(:disabled), :focus-visible) img { transform: translateY(-10px) rotate(-4deg); box-shadow: var(--bp-card-shadow-raised); }
+.game-pile-action[data-action="challenge"]:is(:hover:not(:disabled), :focus-visible) img { transform: translateY(-8px) rotate(5deg); }
+.game-pile-action:focus-visible { outline: 3px dashed var(--bp-paper); outline-offset: 5px; }
+.game-pile-action:disabled { opacity: 1; cursor: default; }
+.game-table .game-pile-recycle { color: var(--bp-paper); font: inherit; }
+.game-pile-recycle:is(:hover:not(:disabled), :focus-visible) { background: #ffffff12; }
+.game-pile-empty { display: grid; place-items: center; border: 1px dashed var(--bp-table-line); border-radius: 5%; color: var(--bp-table-muted); font-size: 12px; }
+.game-table .bp-declared { min-width: 160px; padding: 16px; }
+.game-table .bp-declared__title { margin: 0; }
+.game-table .bp-effects { width: 100%; margin: 8px auto; }
+.game-pending-win { margin: 0; color: var(--bp-paper); text-align: center; font-size: 13px; }
+.game-winner { margin: 4px 0 12px; text-align: center; font: 500 32px/1.1 var(--bp-font-display); }
+.game-panel { width: 100%; max-width: none; min-width: 0; padding: 28px; border-left: 1px solid var(--bp-line); }
+.game-panel .bp-action-panel__title { font-size: 34px; }
+.game-panel .bp-action-panel__helper { margin-bottom: 22px; }
+.game-panel .bp-field { padding: 18px 0; }
+.game-panel .bp-declaration[aria-pressed="true"] .bp-red { color: inherit; }
+.game-panel .bp-field__help { margin-bottom: 10px; }
+.game-panel .bp-actual__name { font-size: 22px; }
+.game-actual-empty { color: var(--bp-muted); font-size: 14px; margin: 10px 0; }
+.game-suits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.game-suit { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 8px 4px; border: 1px solid var(--bp-line); border-radius: var(--bp-radius); background: transparent; font-size: 12px; }
+.game-suit .bp-suit { font-size: 19px; }
+.game-suit:hover { background: var(--bp-paper-hover); }
+.game-suit[aria-pressed="true"] { background: var(--bp-ink); color: var(--bp-white); border-color: var(--bp-ink); }
+.game-suit[aria-pressed="true"] .bp-red { color: inherit; }
+.game-truthful { margin-bottom: 18px; }
+.game-panel .bp-play-summary { font-size: 23px; }
+.game-play-reason { margin: 8px 0 14px; font-size: 13px; color: var(--bp-muted); }
+.game-play-reason[data-invalid="true"] { color: var(--bp-red); }
+.game-response-actions { margin-bottom: 22px; }
+.game-history .bp-history__row { grid-template-columns: 55px minmax(0, 1fr); gap: 10px; }
+.game-history .bp-history__row > :last-child { overflow-wrap: anywhere; }
+.game-history-empty { color: var(--bp-muted); font-size: 13px; }
+.game-error { display: flex; align-items: center; gap: 16px; padding: 14px 28px; border-bottom: 1px solid var(--bp-red); color: var(--bp-red); font-size: 14px; }
+.game-error[hidden] { display: none; }
+.game-error span { flex: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .game-table .game-pile-action:is(:hover:not(:disabled), :focus-visible) img { transform: none; }
+}
+@media (min-width: 1600px) {
+  .game-layout { grid-template-columns: minmax(0, 1fr) 500px; }
+  .game-fan .bp-card { --bp-card-width: 124px; }
+}
+@media (max-width: 1100px) {
+  .game-layout { grid-template-columns: minmax(0, 1fr) 444px; }
+  .game-table { padding-inline: 16px; }
+  .game-fan .bp-card { --bp-card-width: 90px; }
+  .game-table .bp-piles { gap: 22px; }
+  .game-table .bp-declared { min-width: 144px; }
+  .game-panel { padding-inline: 20px; }
+}
+@media (min-width: 881px) and (max-height: 940px) {
+  .game-table { gap: 8px; padding-block: 12px; }
+  .game-fan .bp-card { --bp-card-width: 76px; }
+  .game-table .bp-pile__cards { --bp-card-width: 72px; }
+  .game-table .bp-effects { margin-block: 4px; }
+}
+@media (max-width: 880px) {
+  .game-layout { grid-template-columns: minmax(0, 1fr); }
+  .game-table { min-height: 0; gap: 8px; padding: 26px 20px 20px; }
+  .game-panel { border-left: 0; border-top: 1px solid var(--bp-line); padding: 28px max(20px, calc((100vw - 560px) / 2)); }
+  .game-table .bp-piles { gap: 28px; }
+}
+@media (max-width: 480px) {
+  .bp-topbar { gap: 16px; padding: 20px; }
+  .bp-debug { font-size: 12px; }
+  .bp-topbar__actions { gap: 8px; }
+  .game-table { padding-inline: 10px; }
+  .game-hand-scroll { scroll-padding-inline: 36px; }
+  .game-fan.bp-hand { padding: 28px 36px 34px; }
+  .game-fan .bp-card { --bp-card-width: 76px; }
+  .game-table .bp-piles { gap: 16px 24px; }
+  .game-table .bp-pile__cards { --bp-card-width: 72px; }
+  .game-table .bp-declared { min-width: 136px; padding: 12px; }
+  .game-table .bp-declared__title { font-size: 20px; }
+  .game-table .bp-effects { margin-block: 12px; }
+  .game-empty-hand { min-height: 144px; }
+  .game-error { padding: 14px 20px; flex-wrap: wrap; }
+}

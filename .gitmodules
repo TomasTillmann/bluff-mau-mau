@@ -1,0 +1,3 @@
+[submodule "free-playing-cards"]
+	path = free-playing-cards
+	url = https://github.com/AustinGabriel/The-Public-Domain-Deck-Public-Domain-and-CC0-Playing-Cards.git

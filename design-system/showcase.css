@@ -1,0 +1,78 @@
+/* Specimen page layout. Component styling lives in components.css. */
+html { scroll-behavior: smooth; }
+.ds-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ds-skip { position: absolute; top: -80px; left: 20px; z-index: 50; padding: 12px; background: var(--bp-paper); }
+.ds-skip:focus { top: 12px; }
+.ds-masthead, .ds-end { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 32px; padding: 24px 4.5%; font-size: 13px; }
+.ds-masthead { border-bottom: 1px solid var(--bp-line); }
+.ds-masthead nav { display: flex; flex-wrap: wrap; gap: 24px; margin-left: auto; }
+.ds-masthead a { text-decoration: none; padding-block: 8px; }
+.ds-masthead a:hover { text-decoration: underline; }
+main { width: min(1320px, 91%); margin: auto; }
+.ds-intro { display: grid; grid-template-columns: 1.25fr 1fr; align-items: end; gap: 40px; padding: 72px 0 64px; }
+h1 { margin: 0; font: 500 clamp(52px, 7vw, 96px)/.98 var(--bp-font-display); letter-spacing: -.04em; }
+.ds-intro p { margin: 0 0 22px; font-size: 22px; line-height: 1.45; }
+.ds-intro .ds-note { max-width: 37ch; font-size: 14px; margin-bottom: 0; }
+.ds-section { padding: 40px 0 56px; border-top: 1px solid var(--bp-ink); scroll-margin-top: 24px; }
+.ds-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
+h2 { margin: 0; font: 500 clamp(30px, 3.4vw, 46px)/1.05 var(--bp-font-display); letter-spacing: -.025em; }
+.ds-section-heading > p { width: 36%; max-width: 38ch; margin: 0; font-size: 14px; color: var(--bp-muted); }
+.ds-foundations { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 42px; }
+.ds-display { margin: 0; font: 500 36px/1.2 var(--bp-font-display); letter-spacing: -.02em; }
+.ds-type > p:not(.ds-display) { margin: 14px 0; font-size: 17px; }
+.ds-palette { display: grid; grid-template-columns: 1fr 1.35fr 1fr .8fr; gap: 12px; }
+.ds-palette figure { margin: 0; min-width: 0; }
+.ds-palette figure > div { height: 112px; border: 1px solid var(--bp-line); }
+.ds-palette figcaption { margin-top: 10px; font-size: 13px; }
+.ds-palette figcaption span { display: block; margin-top: 4px; color: var(--bp-muted); font-size: 11px; }
+.ds-caption { margin: 0 0 14px; color: var(--bp-muted); font-size: 12px; }
+.ds-example { border-top: 1px solid var(--bp-line); padding-top: 18px; }
+.ds-button-row { display: flex; flex-wrap: wrap; align-items: end; gap: 24px 32px; padding-top: 28px; }
+.ds-button-row > p { max-width: 22ch; margin: 0 0 6px auto; }
+.ds-note { color: var(--bp-muted); font-size: 13px; }
+.ds-card-study { display: flex; flex-wrap: wrap; align-items: center; gap: 40px; padding: 32px 0 12px; }
+.ds-card-study figure { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; min-height: 215px; margin: 0; }
+.ds-card-study figcaption { margin-top: 28px; color: var(--bp-muted); font-size: 12px; }
+.ds-card-copy { max-width: 29ch; margin-left: auto; }
+.ds-card-copy h3 { margin: 0 0 12px; font: 500 28px/1.15 var(--bp-font-display); }
+.ds-card-copy p { margin: 0 0 16px; font-size: 14px; }
+.ds-preview-labels, .ds-assembly { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,500px); }
+.ds-preview-labels { gap: 32px; margin-bottom: 14px; color: var(--bp-muted); font-size: 12px; }
+.ds-assembly > * { min-width: 0; }
+.ds-assembly { align-items: stretch; border: 1px solid var(--bp-line); }
+.ds-seat { padding-block: 10px; }
+.ds-status { min-height: 38px; margin: 14px 0 0; color: var(--bp-muted); font-size: 12px; line-height: 1.45; }
+.ds-end { border-top: 1px solid var(--bp-line); }
+.ds-end > span { margin-right: auto; }
+@media (max-width: 1200px) {
+  .ds-card-copy { flex: 1 1 220px; margin-left: 0; }
+  .ds-assembly, .ds-preview-labels { grid-template-columns: minmax(0,1fr); }
+  .ds-seat { padding-block: 32px; }
+}
+@media (max-width: 900px) {
+  .ds-assembly { grid-template-columns: minmax(0,1fr); }
+  .ds-preview-labels { display: block; }
+  .ds-preview-labels span + span { display: none; }
+  .ds-foundations { gap: 28px; }
+  .ds-button-row > p { margin-left: 0; }
+  .ds-intro { padding-block: 48px; }
+}
+@media (max-width: 600px) {
+  .ds-masthead { padding: 20px 5%; gap: 8px; }
+  .ds-masthead nav { margin-left: 0; gap: 20px; font-size: 12px; }
+  main { width: 90%; }
+  .ds-intro { grid-template-columns: 1fr; gap: 28px; padding: 40px 0; }
+  .ds-intro p { font-size: 19px; margin-bottom: 12px; }
+  .ds-section { padding: 30px 0 40px; }
+  .ds-section-heading { display: block; margin-bottom: 28px; }
+  .ds-section-heading > p { width: auto; margin-top: 16px; }
+  .ds-foundations { grid-template-columns: 1fr; gap: 28px; }
+  .ds-palette { gap: 8px; }
+  .ds-palette figure > div { height: 85px; }
+  .ds-card-study { gap: 36px; justify-content: space-between; }
+  .ds-card-study figure { min-height: 210px; }
+  .ds-card-copy { flex-basis: 100%; max-width: 34ch; }
+  .ds-seat { padding-block: 0; }
+  .ds-end { padding: 24px 5%; gap: 12px 22px; font-size: 12px; }
+  .ds-end > span { width: 100%; }
+}
