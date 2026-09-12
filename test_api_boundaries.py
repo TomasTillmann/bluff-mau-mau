@@ -641,14 +641,14 @@ class ImmutableReplayTests(unittest.TestCase):
             ("KS", 4, False, ("7S",)),
             ("7H", 2, False, ("7H", "7D", "7C", "7S")),
             ("7S", 6, False, ("7H", "7D", "7C", "7S", "KS")),
-            ("AH", 0, True, ("AH", "AD", "AC", "AS", "QH", "QD", "QC", "QS")),
+            ("AH", 0, True, ("AH", "AD", "AC", "AS")),
         )
         for top, penalty, skip, declarations in cases:
             s = state(top=top, hands=(("JC",), ("8C",)),
                       draw_penalty=penalty, skip_pending=skip)
             s = replace(s, deck=(), hands=(s.hands[0], s.hands[1] + s.deck))
             moves = MoveGenerator(s)
-            declarations = set(declarations) | {"Q" + suit for suit in SUITS}
+            declarations = set(declarations) | ({"Q" + suit for suit in SUITS} if not skip else set())
             expected = {PlayCard(card("JC"), card(declared), suit) for declared in declarations
                         for suit in (SUITS if declared.startswith("Q") else (None,))}
             with self.subTest(top=top):

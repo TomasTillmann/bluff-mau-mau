@@ -162,7 +162,7 @@ def NewGame(seed: int = 0, dealer: int = 0) -> GameState:
 
 def _declarations(state: GameState) -> tuple[Card, ...]:
     if state.skip_pending:
-        return tuple(card for card in CARDS if card.rank in ("A", "Q"))
+        return tuple(card for card in CARDS if card.rank == "A")
     if state.draw_penalty:
         if state.top == Card("K", "S"):
             return tuple(card for card in CARDS if card.rank == "Q" or card == Card("7", "S"))

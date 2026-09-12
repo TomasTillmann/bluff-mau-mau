@@ -19,8 +19,8 @@ Players choose only from the legal moves available in the current game state. Th
 
 | Declared card | Effect |
 |---|---|
-| **Queen** | Can be played on **any card**, including an ace, seven, or K♠. It cancels the pending skip or entire accumulated draw penalty. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
-| **Ace** | Accepting immediately skips the opponent's turn; alternatively they can counter with another ace or a queen before accepting. Aces pass the skip onward; they do not accumulate multiple skipped turns. |
+| **Queen** | Can be played on **any card unless an ace skip is pending**, including a seven or K♠. It cancels the entire accumulated draw penalty. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
+| **Ace** | Accepting immediately skips the opponent's turn; alternatively they can counter only with another ace before accepting. Aces pass the skip onward; they do not accumulate multiple skipped turns. |
 | **Any seven** | Adds **two cards** to the draw penalty. Another seven can counter it. |
 | **K♠** | Adds **four cards**. Only **7♠** adds to it; a queen cancels it. **K♠ can also counter 7♠**. |
 | **Other cards** | No special effect. |
@@ -34,7 +34,7 @@ If the **starting card is a queen**, there is **no suit or rank restriction unti
 After each play, before applying its effect to the opponent, the opponent chooses:
 
 - **Accept:** Continue according to the declaration. It now counts as that card, regardless of its actual identity, and cannot be challenged later. Accepting an ace immediately consumes the skip and gives the turn back to its player.
-- **Play or draw:** A legal next play or draw implicitly accepts the previous declaration in the same decision. Aces and queens can counter a pending ace this way, before its skip is consumed. Merely choosing a card or declaration does not accept anything.
+- **Play or draw:** A legal next play or draw implicitly accepts the previous declaration in the same decision. Only aces can counter a pending ace this way, before its skip is consumed. Merely choosing a card or declaration does not accept anything.
 - **Challenge:** Reveal the latest card and compare its printed rank and suit with the declaration. A queen’s chosen continuing suit is separate from its identity and does not make an otherwise truthful declaration false.
 
 If the declaration was false, **the bluffer loses the challenge**. If it was truthful, **the challenger loses**.

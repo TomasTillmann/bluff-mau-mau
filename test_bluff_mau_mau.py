@@ -136,13 +136,14 @@ class RulesTests(unittest.TestCase):
 
     def test_ace_can_only_be_skipped_or_countered(self):
         s = state(top="AH", skip_pending=True)
-        self.assertEqual(declarations(s), {c for c in CARDS if c.rank in ("A", "Q")})
+        self.assertEqual(declarations(s), {c for c in CARDS if c.rank == "A"})
         self.assertIn(Skip(), MoveGenerator(s))
         self.assertNotIn(Draw(), MoveGenerator(s))
         skipped = Play(s, Skip())
         self.assertFalse(skipped.skip_pending)
         self.assertEqual(skipped.turn, 1)
         self.assertEqual(skipped.top, card("AH"))
+        self.assertIn(card("QS"), declarations(skipped))
         countered = play(s, "JC", "AS")
         self.assertTrue(countered.skip_pending)
         accepted = Play(countered, Accept())
@@ -167,28 +168,42 @@ class RulesTests(unittest.TestCase):
             self.assertEqual(result.top, reply.actual_card)
             self.assertEqual(result.turn, 0)
 
-    def test_queen_counters_pending_ace_before_acceptance(self):
+    def test_pending_ace_only_allows_ace_counters_before_acceptance(self):
         for player, truthful in product((0, 1), (False, True)):
-            s = state(hands=(("AH", "8C"), ("QS", "10D")))
-            if player:
-                s = mirror(s)
-            pending = play(s, "AH")
-            response = PlayCard(card("QS" if truthful else "10D"), card("QS"), "D")
-            self.assertIn(response, MoveGenerator(pending))
-            self.assertNotIn(Skip(), MoveGenerator(pending))
-            self.assertNotIn(Draw(), MoveGenerator(pending))
-            countered = Play(pending, response)
-            self.assertEqual(countered.turn, player)
-            self.assertFalse(countered.skip_pending)
-            self.assertEqual(countered.chosen_suit, "D")
-            self.assertEqual(Play(countered, Accept()).turn, player)
-            challenged = Play(countered, Challenge())
-            self.assertEqual(challenged.turn, 1 - player if truthful else player)
-            self.assertEqual(challenged.top, response.actual_card)
-            self.assertFalse(challenged.skip_pending)
-            skipped = Play(pending, Accept())
-            self.assertEqual(skipped.turn, player)
-            self.assertFalse(skipped.skip_pending)
+            with self.subTest(player=player, truthful=truthful):
+                s = state(hands=(("AH", "8C"), ("AS", "QS", "10D")))
+                if player:
+                    s = mirror(s)
+                pending = play(s, "AH")
+                self.assertEqual(declarations(pending), {c for c in CARDS if c.rank == "A"})
+                self.assertNotIn(Skip(), MoveGenerator(pending))
+                self.assertNotIn(Draw(), MoveGenerator(pending))
+                with self.assertRaises(ValueError):
+                    play(pending, "QS", "QS", "D")
+                # A real queen remains usable as a bluff, declared as an ace.
+                response = PlayCard(card("AS" if truthful else "QS"), card("AS"))
+                countered = Play(pending, response)
+                self.assertEqual(countered.turn, player)
+                self.assertEqual(countered.phase, "response")
+                self.assertTrue(countered.skip_pending)
+                self.assertIsNone(countered.chosen_suit)
+                accepted = Play(countered, Accept())
+                self.assertEqual(accepted.turn, 1 - player)
+                self.assertFalse(accepted.skip_pending)
+                self.assertEqual(accepted.hands, countered.hands)
+                self.assertEqual(accepted.deck, countered.deck)
+                self.assertIn(card("QS"), declarations(accepted))
+                challenged = Play(countered, Challenge())
+                self.assertEqual(challenged.turn, 1 - player if truthful else player)
+                self.assertEqual(challenged.top, response.actual_card)
+                self.assertFalse(challenged.skip_pending)
+                self.assertIn(card("QS"), declarations(challenged))
+                skipped = Play(pending, Accept())
+                self.assertEqual(skipped.turn, player)
+                self.assertFalse(skipped.skip_pending)
+                self.assertEqual(skipped.hands, pending.hands)
+                self.assertEqual(skipped.deck, pending.deck)
+                self.assertIn(card("QS"), declarations(skipped))
 
     def test_penalty_counters_and_payment(self):
         for top, penalty, counters in (("7H", 2, {c for c in CARDS if c.rank == "7"}),

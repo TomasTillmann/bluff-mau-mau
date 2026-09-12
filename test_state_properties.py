@@ -50,7 +50,7 @@ class StatePropertyTests(unittest.TestCase):
     def test_all_pending_effect_move_sets_ignore_actual_card_identity(self):
         queens = {Card("Q", suit) for suit in SUITS}
         sevens = {Card("7", suit) for suit in SUITS} | queens
-        aces = {Card(rank, suit) for rank in ("A", "Q") for suit in SUITS}
+        aces = {Card("A", suit) for suit in SUITS}
         cases = [(Card("A", suit), 0, True, aces, Skip()) for suit in SUITS]
         for suit in SUITS:
             for amount in (2, 6, 30, 100):

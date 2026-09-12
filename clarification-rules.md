@@ -18,15 +18,17 @@ explicit in the function API.
    that opponent's victory; the newly drawn cards cannot counter it.
 
 3. **Accepting an ace consumes its skip immediately.** To counter an ace, submit
-   an ace or queen directly in response phase. Explicit acceptance gives the turn
+   another ace directly in response phase. Explicit acceptance gives the turn
    back to the ace's player and confirms their victory if their hand is empty.
    A starting ace still offers `Skip()` because it has no claim to accept.
    Accepting a seven or K♠ with cards in hand leaves the choice to counter or draw.
 
-4. **A queen cancels all pending effects.** Any declared queen and continuing suit
-   can counter an ace, seven, or K♠. Playing it clears the skip or accumulated draw
-   penalty. If that queen is challenged, the loser draws only two cards. A queen
-   does not return an already empty opponent; accepting it confirms that opponent's win.
+4. **A queen cancels pending draw penalties, but cannot counter an ace.** Any
+   declared queen and continuing suit can counter a seven or K♠, clearing the
+   accumulated draw penalty. Once an ace skip is consumed or cleared by a
+   challenge, queens are legal again. If a queen is challenged, the loser draws
+   only two cards. A queen does not return an already empty opponent; accepting
+   it confirms that opponent's win.
 
 Setup uses a seeded shuffle, deals alternately starting with the non-dealer, and
 treats the first draw-pile element as the next card. These are reproducible

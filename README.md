@@ -96,9 +96,9 @@ The move types are frozen dataclasses:
 
 After `PlayCard`, the opponent acts in `"response"` phase. `Accept()` and
 `Challenge()` remain first in the legal list. A nonempty responder can also play
-or draw directly to implicitly accept the prior claim. Against an ace, only an
-ace or queen may be played; explicit acceptance consumes the skip immediately.
-Queens cancel any pending skip or draw penalty. Forced effects on an empty hand
+or draw directly to implicitly accept the prior claim. Against a pending ace,
+only an ace may be played; explicit acceptance consumes the skip immediately.
+Queens cancel pending draw penalties, but cannot counter an ace skip. Forced effects on an empty hand
 are resolved during acceptance; see [clarification-rules.md](clarification-rules.md).
 
 ## State and replay
