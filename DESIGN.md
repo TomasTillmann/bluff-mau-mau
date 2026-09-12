@@ -70,12 +70,13 @@ uses public snapshots and actual hand-count differences (including shortages),
 and updates the existing polite live announcement. Selection preserves the strip;
 reloads, new games, and debug presets clear it.
 
-The game action panel reserves intrinsic space for the actual-card preview, queen
-continuation row, and validation feedback. Keep declaration and submit positions
-stable during selection; text can still grow rather than clip. Accept and Call
-bluff share the lower action area with Play/Draw so accepting through a hand card
-does not remove a separate block above the grid. At narrow widths the queen
-label moves above its four suit buttons.
+The compact game panel shares one stable row between the actual-card preview
+and queen continuation controls. Declaration and suit buttons retain 44px targets.
+One feedback paragraph shows the unavailable-play reason or the ready declaration’s
+effect. Play/Draw share a row on desktop; Accept/Call bluff occupy the same action
+area during responses. Recent moves use a bounded, keyboard-scrollable row. Core
+hands, grid, actions, and MoveExplain fit a 1280×720 desktop viewport without page
+scrolling. Mobile keeps readable controls and allows page/grid scrolling.
 
 Card-layout references: [World of Card Games Hearts](https://worldofcardgames.com/hearts)
 and [Solitaire.org FreeCell](https://www.solitaire.org/free-cell/). Keep the complete

@@ -51,6 +51,28 @@ function samePositions(before, after) {
   before.forEach((value, index) => expect(Math.abs(after[index] - value), 'Selection moved a panel control').toBeLessThan(1));
 }
 
+async function coreFitsViewport(page) {
+  const geometry = await page.evaluate(async () => {
+    await Promise.all([...document.querySelectorAll('.game-fan')].flatMap(fan => fan.getAnimations({ subtree: true }).map(animation => animation.finished)));
+    const selectors = ['.game-seat', '.game-fan img', '.bp-declarations', '#play-truthful', '#play-card', '#move-draw', '.game-move-explain'];
+    return {
+      height: innerHeight, width: innerWidth, scrollY,
+      elements: selectors.flatMap(selector => [...document.querySelectorAll(selector)].map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        return { name: `${selector}[${index}]`, top: rect.top + scrollY, bottom: rect.bottom + scrollY, left: rect.left + scrollX, right: rect.right + scrollX };
+      })),
+    };
+  });
+  expect(geometry.scrollY, 'Core game controls must work without page scrolling').toBe(0);
+  expect(geometry.elements.length, 'Both five-card hands, grid, three actions and result must be measured').toBe(17);
+  for (const box of geometry.elements) {
+    expect(box.top, `${box.name} starts above the viewport`).toBeGreaterThanOrEqual(-0.5);
+    expect(box.bottom, `${box.name} ends below the viewport`).toBeLessThanOrEqual(geometry.height + 0.5);
+    expect(box.left, `${box.name} starts outside the viewport`).toBeGreaterThanOrEqual(-0.5);
+    expect(box.right, `${box.name} ends outside the viewport`).toBeLessThanOrEqual(geometry.width + 0.5);
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   errors.set(page, []);
   page.on('pageerror', error => errors.get(page).push(error.message));
@@ -96,13 +118,31 @@ test('draw pile lifts, draws and swaps the active hand', async ({ page }) => {
 });
 
 test('both players can call a bluff by clicking a two- or three-layer discard', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
   await load(page);
-  for (const [player, actual, declared] of [[0, '10H', '10C'], [1, 'JC', '10H']]) {
+  for (const [player, actual, declared] of [[0, '10H', 'QC'], [1, 'JC', '10H']]) {
     await pick(page, actual, player);
     await page.locator(`#declare-${declared}`).click();
+    if (declared === 'QC') await page.locator('#suit-S').click();
     await page.locator('#play-card').click();
     await ready(page);
     await expect(page.locator('#pile-challenge')).toBeEnabled();
+    const responseLayout = await page.evaluate(() => ({
+      height: innerHeight, scrollHeight: document.documentElement.scrollHeight, scrollY,
+      buttons: [...document.querySelectorAll('#move-accept, #move-challenge, #move-draw')].map(button => {
+        const rect = button.getBoundingClientRect();
+        return { id: button.id, top: rect.top + scrollY, bottom: rect.bottom + scrollY, width: rect.width, height: rect.height };
+      }),
+    }));
+    expect(responseLayout.scrollHeight, 'Response history must not extend the page').toBeLessThanOrEqual(responseLayout.height);
+    expect(responseLayout.scrollY, 'Responding must not require page scrolling').toBe(0);
+    expect(responseLayout.buttons).toHaveLength(3);
+    for (const box of responseLayout.buttons) {
+      expect(box.top, `${box.id} starts above the viewport`).toBeGreaterThanOrEqual(0);
+      expect(box.bottom, `${box.id} ends below the viewport`).toBeLessThanOrEqual(responseLayout.height);
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThan(0);
+    }
     const point = await hoverPile(page, '#pile-challenge', player === 1);
     await page.mouse.click(point.x, point.y);
     await ready(page);
@@ -114,22 +154,33 @@ test('both players can call a bluff by clicking a two- or three-layer discard', 
   }
 });
 
-for (const width of [1272, 320]) {
-  test(`card, queen and declaration choices keep panel controls still at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
+for (const [width, height] of [[1272, 812], [1280, 720], [320, 900]]) {
+  test(`card, queen and declaration choices keep controls stable at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
     await load(page);
     const positions = await panelPositions(page);
+    const checkLayout = async () => {
+      samePositions(positions, await panelPositions(page));
+      if (width > 880) await coreFitsViewport(page);
+    };
+    await checkLayout();
+    const targets = await page.locator('.bp-declaration').evaluateAll(buttons => buttons.map(button => { const { width, height } = button.getBoundingClientRect(); return { width, height }; }));
+    expect(targets).toHaveLength(32);
+    for (const target of targets) {
+      expect(target.width, 'Declaration target width').toBeGreaterThanOrEqual(44);
+      expect(target.height, 'Declaration target height').toBeGreaterThanOrEqual(44);
+    }
     for (const card of ['KD', '10H', 'QS']) {
       await pick(page, card);
-      samePositions(positions, await panelPositions(page));
+      await checkLayout();
     }
     await expect(page.locator('#play-truthful')).toBeDisabled();
     await page.locator('#suit-D').click();
     await expect(page.locator('#play-truthful')).toBeEnabled();
-    samePositions(positions, await panelPositions(page));
+    await checkLayout();
     for (const declaration of ['7S', 'QC']) {
       await page.locator(`#declare-${declaration}`).click();
-      samePositions(positions, await panelPositions(page));
+      await checkLayout();
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   });
