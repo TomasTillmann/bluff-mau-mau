@@ -64,5 +64,6 @@ baseline configuration, complete matches, and the debug HTTP bridge.
 - [Backend API and layout](docs/backend.md)
 - [Baseline behavior and private observations](docs/baseline-engines.md)
 - [Saved baseline arena ranking — 7,572,168 games](docs/arena-ranking-2026-09-13.md)
+- [Game-solving research, self-play CFR, and experimental engines](docs/solving.md)
 - [Verification evidence and fixture provenance](AUDIT.md)
 - [UI requirements](PRODUCT.md) and [component conventions](DESIGN.md)

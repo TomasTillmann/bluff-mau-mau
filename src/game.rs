@@ -268,7 +268,7 @@ pub fn new_game_decimal(seed: &str, dealer: usize) -> Result<GameState, String> 
     deal(PythonRandom::seed_decimal(seed)?, dealer)
 }
 
-fn deal(mut rng: PythonRandom, dealer: usize) -> Result<GameState, String> {
+pub(crate) fn deal(mut rng: PythonRandom, dealer: usize) -> Result<GameState, String> {
     if dealer > 1 {
         return Err("Dealer must be 0 or 1".into());
     }

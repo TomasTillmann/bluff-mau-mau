@@ -11,10 +11,16 @@ versions. Build and run commands are in the [root README](../README.md).
 - `src/engines/observation.rs`: private observations and discard knowledge.
 - `src/engines/matches.rs`: matches, paired round robins, and grid evaluation.
 - `src/engines/arena.rs`: parallel scheduling, SQLite ledger, Elo, and CSV export.
+- `src/engines/tactical.rs`, `search.rs`: experimental stronger playing policies.
+- `src/engines/cfr.rs`, `solving.rs`: self-play CFR and finite hidden-information game trees.
+- `src/engines/mccfr.rs`, `training_store.rs`: sampled self-play and durable training checkpoints.
 - `src/server.rs`, `src/move_explain.rs`: debug HTTP API and public explanations.
 - `src/bin/`: `server`, `baseline`, and `arena` command entry points.
 - `tests/`: Rust integration tests and their frozen fixtures.
 - `examples/benchmark.rs`: reproducible single-thread match benchmark.
+- `examples/engine_lab.rs`, `solve.rs`, `train.rs`: isolated match evaluations, exact solving,
+  and resumable sampled [solver experiments](solving.md).
+- `examples/evaluate_trained.rs`: held-out full-history policy matches and diagnostic performance Elo.
 
 ## Game state and moves
 
