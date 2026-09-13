@@ -1,5 +1,5 @@
 //! Independent arena contract tests. Authored without reading Rust implementation/tests.
-//! Sources: docs/arena.md and the original Python tests/arena/test_arena.py.
+//! Public contract: docs/arena.md. Independent authorship provenance: AUDIT.md.
 use bluff_mau_mau::engines::arena::{self, RunOptions};
 use rusqlite::{Connection, OpenFlags, types::ValueRef};
 use serde_json::{Value, json};

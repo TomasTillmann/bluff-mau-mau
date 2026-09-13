@@ -6,7 +6,7 @@
 web
 
 ## Purpose
-Two-player Bluff Mau-Mau, backed by the existing immutable Python engine.
+Two-player Bluff Mau-Mau, backed by the Rust engine.
 
 ## Current scope
 A playable local debug table built from the approved component study. Both hands are visible and the user makes decisions for both players. The component showcase remains a separate reference.
@@ -27,4 +27,4 @@ only for an exact engine-legal move; queens require an explicitly chosen continu
 suit. Grid selections remain independent and keep the existing bluff action.
 
 ## Constraints
-Use the engine’s legal moves as the source of truth. Every actual card can be used for any declaration returned by MoveGenerator; never filter bluffs using card identity or location. All declaration tiles remain visible; illegal declarations are dimmed and disabled. Use native HTML/CSS/JavaScript and a Python standard-library server. English labels and desktop-first composition with usable narrow layouts are current choices. This iteration is a local shared debug game; normal play with a hidden opponent hand, bots, and multiplayer are outside this UI iteration. Use a small, fast Playwright sanity suite in tests/integration for pointer actions, layout stability, and card access; keep its scope in that folder’s AGENTS.md. Continue visual verification through the Chrome extension and detailed logic checks in Python/Node.
+Use the engine’s legal moves as the source of truth. Every actual card can be used for any declaration returned by `move_generator`; never filter bluffs using card identity or location. All declaration tiles remain visible; illegal declarations are dimmed and disabled. Use native HTML/CSS/JavaScript and the Rust HTTP server. English labels and desktop-first composition with usable narrow layouts are current choices. This iteration is a local shared debug game; normal play with a hidden opponent hand, bots, and multiplayer are outside this UI iteration. Use a small, fast Playwright sanity suite in tests/integration for pointer actions, layout stability, and card access; keep its scope in that folder’s AGENTS.md. Continue visual verification through the Chrome extension and detailed logic checks in Rust/Node.

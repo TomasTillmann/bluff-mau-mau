@@ -7,10 +7,10 @@ After cloning this repository, initialize the supplied card assets with `git sub
 From the repository root:
 
 ```sh
-python3 -B -m http.server 8766 --bind 127.0.0.1
+cargo run --release --bin server -- --port 8766
 ```
 
-Open [the specimen](http://127.0.0.1:8766/design-system/). Select either hand's cards, choose any of the 32 declarations, and use **New game** to reset the examples. The page acknowledges action-button presses locally; it does not run the game, validate moves, or change engine rules.
+Open [the specimen](http://127.0.0.1:8766/design-system/index.html). Select either hand's cards, choose any of the 32 declarations, and use **New game** to reset the examples. The page acknowledges action-button presses locally; it does not run the game, validate moves, or change engine rules.
 
 With the existing `bluff-ui` Playwright CLI Chrome session open at that URL, run the browser check from the repository root:
 
@@ -18,4 +18,4 @@ With the existing `bluff-ui` Playwright CLI Chrome session open at that URL, run
 playwright-cli -s=bluff-ui run-code --filename=design-system/check.js
 ```
 
-The supplied Public Domain Deck remains under `../free-playing-cards/` with its CC0 license. The self-hosted Bricolage Grotesque font is under `fonts/` with its SIL Open Font License. No dependencies or build step are required.
+The supplied Public Domain Deck remains under `../free-playing-cards/` with its CC0 license. The self-hosted Bricolage Grotesque font is under `fonts/` with its SIL Open Font License. The specimen itself has no frontend dependencies or build step.

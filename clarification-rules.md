@@ -10,8 +10,8 @@ explicit in the function API.
    an accumulated two-card penalty records four; a challenge loser draws six.
 
 2. **Forced empty-hand actions happen within acceptance.** A player with no cards
-   still chooses `Accept()` or `Challenge()`. Once they accept a return penalty,
-   drawing and ending their turn happen in that same `Play` call. An accepted
+   still chooses `Move::Accept` or `Move::Challenge`. Once they accept a return penalty,
+   drawing and ending their turn happen in that same `play` call. An accepted
    ace automatically skips their empty hand when the opponent still has cards.
    This avoids an extra decision with no alternative. For example, accepting an
    opponent's final return seven draws the available penalty cards and confirms
@@ -32,7 +32,7 @@ explicit in the function API.
    it confirms that opponent's win.
 
 5. **Opening special cards are inactive, with a conditional penalty contribution.**
-   `opening_card` stays true until the first `PlayCard`, including across draws.
+   `opening_card` stays true until the first `Move::Play`, including across draws.
    Opening aces, sevens and K♠ allow normal matching play without owing a skip or
    penalty. If that first declaration is a seven or K♠, add the starting card’s
    two/four-card contribution; otherwise discard it. Opening 7♥ → 7♠ owes four,

@@ -32,4 +32,4 @@ The independent review covered `DESIGN.md`, component CSS, presentation HTML/CSS
 
 The supplied SVG deck is used directly from the initialized `free-playing-cards` submodule, preserving complete artwork and 5:7 proportions. The typography detector advisory was a false positive: measured heading sizes were 96/46/38px against 14px helper text. The paper-palette advisory reflects the intentional green-and-paper direction.
 
-The root agent also reported all 74 existing engine tests passing and no engine/rules changes. This audit did not review game-engine behavior. Five-card-only fan positions and the absence of game integration are intentional limits of the requested component specimen.
+This component audit did not review game-engine behavior. Five-card-only fan positions and the absence of game integration are intentional limits of the requested component specimen.

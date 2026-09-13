@@ -2,7 +2,7 @@
 
 Keep this suite small, fast, and practical. These are Playwright sanity checks,
 not exhaustive gameplay tests. Cover real pointer hover/click behavior, reachable
-cards, and stable layout during a few ordinary selections. The Python engine
+cards, and stable layout during a few ordinary selections. The Rust engine
 and Node unit checks own detailed rules and combinations.
 
 Run from the repository root:
@@ -12,7 +12,7 @@ npm --prefix tests/integration ci
 npm --prefix tests/integration test
 ```
 
-Google Chrome, Node.js, and Python 3.10+ must be installed. Use `test:headed`
+Google Chrome, Node.js, and Rust/Cargo must be installed. Use `test:headed`
 instead of `test` to watch Chrome. The suite starts its own local game server on
 port 18767 and stops it afterward; do not run it against the user's game on 8767.
 Run serially because the debug server has one shared game. Each page load deals

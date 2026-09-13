@@ -1,5 +1,6 @@
 const { defineConfig } = require('@playwright/test');
 const path = require('node:path');
+const os = require('node:os');
 
 module.exports = defineConfig({
   testDir: __dirname,
@@ -17,11 +18,11 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'python3 -B server.py --port 18767',
+    command: 'cargo run --release --bin server -- --port 18767',
+    env: { PATH: `${process.env.PATH}${path.delimiter}${path.join(os.homedir(), '.cargo', 'bin')}` },
     cwd: path.resolve(__dirname, '../..'),
     url: 'http://127.0.0.1:18767/api/state',
     reuseExistingServer: false,
-    stderr: "ignore",
-    timeout: 10000,
+    timeout: 120000,
   },
 });

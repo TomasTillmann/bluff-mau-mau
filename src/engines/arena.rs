@@ -543,7 +543,7 @@ fn validate_resume(
         return Err("rounds must be positive and cannot shrink the stored target".into());
     }
     if &config.fingerprint != current_fingerprint {
-        return Err("Arena source/compiler/format fingerprint mismatch; create a new run. Python runs remain readable but cannot be resumed by Rust.".into());
+        return Err("Arena source/compiler/format fingerprint mismatch; create a new run. Existing results remain readable.".into());
     }
     Ok(())
 }

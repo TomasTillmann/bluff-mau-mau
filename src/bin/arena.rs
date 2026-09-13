@@ -22,7 +22,7 @@ fn run() -> Result<(), String> {
     while let Some(arg) = args.next() {
         if arg == "--help" || arg == "-h" {
             println!(
-                "arena [--resume DIR | --status DIR] [--runs-dir runs] [--roster all|basic] [--seed 0] [--rounds 50] [--max-decisions 1000] [--workers 8] [--top 20]\nBoth games per pair commit atomically. Ctrl-C/SIGTERM stops cleanly; --resume continues.\nPython run results can be viewed with --status; Rust uses separate run fingerprints."
+                "arena [--resume DIR | --status DIR] [--runs-dir runs] [--roster all|basic] [--seed 0] [--rounds 50] [--max-decisions 1000] [--workers 8] [--top 20]\nBoth games per pair commit atomically. Ctrl-C/SIGTERM stops cleanly; --resume continues.\nResume requires the same compiled engine and compiler fingerprint."
             );
             return Ok(());
         }

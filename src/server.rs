@@ -77,9 +77,6 @@ impl DebugGame {
             json!({"player":null,"text":format!("New game. Player {} starts; starting card {}.", self.state.turn + 1, card_name(self.state.top))}),
         ];
     }
-    pub fn reset(&mut self, seed: Option<i64>) -> Result<Value, HttpError> {
-        self.reset_decimal(seed.map(|seed| seed.to_string()).as_deref())
-    }
     pub fn reset_decimal(&mut self, seed: Option<&str>) -> Result<Value, HttpError> {
         let state = if let Some(seed) = seed {
             game::new_game_decimal(seed, 1).map_err(HttpError::bad)?
@@ -343,7 +340,7 @@ fn integer(value: &Value) -> Option<String> {
     (!text.bytes().any(|byte| matches!(byte, b'.' | b'e' | b'E'))).then_some(text)
 }
 
-// JSON's byte encodings match the original json.loads(bytes) boundary.
+// Accept JSON byte encodings with or without a Unicode byte-order mark.
 fn json_body(body: &[u8]) -> Result<Value, HttpError> {
     let (body, width, little) = if body.starts_with(&[0xff, 0xfe, 0, 0]) {
         (&body[4..], 4, true)
@@ -558,10 +555,7 @@ pub struct DebugServer {
 pub fn create_server(port: u16) -> Result<DebugServer, Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(("127.0.0.1", port))?;
     let port = listener.local_addr()?.port();
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Missing repository root")?
-        .canonicalize()?;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize()?;
     // ponytail: one shared debug game; add sessions for independent simultaneous games.
     Ok(DebugServer {
         listener,
@@ -580,7 +574,7 @@ impl DebugServer {
         }
         Ok(())
     }
-    /// One request per connection, with the original five-second socket timeout.
+    /// One request per connection, with a five-second socket timeout.
     pub fn handle_connection(&self, mut stream: TcpStream) {
         if stream
             .set_read_timeout(Some(Duration::from_secs(5)))
@@ -742,7 +736,7 @@ fn read_http_line(reader: &mut impl BufRead, long_status: u16) -> Result<String,
     {
         line.pop();
     }
-    // HTTP header bytes use ISO-8859-1, matching BaseHTTPRequestHandler.
+    // Decode HTTP header bytes as ISO-8859-1.
     Ok(line.into_iter().map(char::from).collect())
 }
 
@@ -834,7 +828,7 @@ mod tests {
     }
     #[test]
     fn serves_only_public_assets() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
         assert_eq!(
             static_asset(root, "/").unwrap().0,
             fs::read(root.join("web/index.html")).unwrap()
@@ -848,9 +842,9 @@ mod tests {
         );
         for path in [
             "/.git/config",
-            "/server.py",
+            "/src/server.rs",
             "/RULES.md",
-            "/design-system/../server.py",
+            "/design-system/../src/server.rs",
             "/web/%2e%2e/.git/config",
             "/design-system/",
             "/design-system/README.md",
@@ -926,7 +920,7 @@ mod tests {
         }
     }
     #[test]
-    fn json_byte_encodings_match_existing_backend() {
+    fn json_byte_encodings_accept_supported_unicode_formats() {
         let expected = json!({"seed":42});
         let text = r#"{"seed":42}"#;
         for little in [false, true] {

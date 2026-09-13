@@ -1,98 +1,122 @@
-# Adversarial audit record
+# Backend verification
 
-The implementation is checked against `RULES.md`. Auditors inspect and probe;
-separate agents fix reproduced findings. A clean audit round after the fixes is
-required before completion.
+The backend and its engine/arena tests are Rust; the unchanged frontend checks\nuse Node.js and Playwright. The authoritative rules are
+[RULES.md](RULES.md), with transition conventions in
+[clarification-rules.md](clarification-rules.md). Run the current checks from the
+repository root:
 
-## Round 1
+```sh
+cargo test --release
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo run --release --example benchmark -- 120
+```
 
-| Finding | Evidence | Status |
-| --- | --- | --- |
-| A1: mutable text aliases violate immutable-state guarantees | `UserString("turn")` is accepted as a phase; changing its `.data` after `Play(state, Draw())` changes the returned phase. The same issue affects card rank/suit and continuing suits. | Fixed by a separate agent: primitive text validation; regression cases added. |
-| A2: malformed RNG numerics leak an unexpected exception | A `Decimal("sNaN")` RNG version or legacy internal word raises `decimal.InvalidOperation` rather than the public `ValueError`. | Fixed: validate integer version/words before invoking the RNG; regression cases added. |
-| A3: inconsistent terminal player is accepted | Replacing a finished state's `turn` with the other player still makes `MoveGenerator` return `[]`, despite the documented `turn == winner` invariant. | Fixed: reject terminal player mismatch; regressions cover both players and both APIs. |
+## Frozen behavioral reference
 
-Independent gameplay auditor: no gameplay findings in 49,152 response cases,
-80 accumulated-penalty/revealed-special probes, and multi-turn return/ace traces
-for both players. The API auditor reported A1–A3. The independent transition
-auditor found no additional bugs across 10,014 legal decisions, 8,352 draw
-transitions (including 1,002 partial penalties), and 232 draws under unrestricted
-queens. These counts describe independent audit probes, beyond the persistent
-test suite.
+`tests/fixtures/python-reference.json` is **test data**, retained because Rust
+integration tests consume it. It contains frozen outputs from the original
+implementation, including source hashes, complete state and RNG values, ordered
+moves, bot choices, knowledge, and evaluation results. Its SHA-256 is:
 
-## Round 2
+```text
+afaad3e795b6574387aa8f0853d12b7c195ad01937376a4961efd189359e7b34
+```
 
-| Finding | Evidence | Status |
-| --- | --- | --- |
-| A4: an accepted `Card` subclass has inconsistent identity | An otherwise empty subclass used as effective `7S` removes the legal `KS` counter; using it as a truthful response declaration reverses the challenge outcome. Python dataclass equality distinguishes the concrete classes, while the top-card boundary accepted subclasses. | Fixed by a new agent: consistently require concrete `Card` values at the state boundary; regressions reproduced both errors for both players before the fix. |
+The data author generated and froze it before inspecting the Rust implementation.
+No Python runtime or source file is needed to execute the reference tests. The
+original implementation and its historical audit/test records remain available
+in Git at commit `8e92832`; they are not part of the working backend.
 
-The fresh API auditor verified A1–A3 and found A4 after 7,548 ordinary boundary
-probes, 69 RNG payload probes, and 53 transitions with immutable tuple wrappers.
-The fresh gameplay auditor reported no findings across 42,173 independently
-checked transitions, including 322 wins. The transition auditor reported no
-findings across 117,882 generated moves, 49,152 response positions, 2,268 draw
-positions, and 2,048 both-empty responses. All auditors were read-only.
+The original migration's nine parity tests passed on their first execution:
 
-## Round 3
+- 140 initial deals, including negative and 1,024-bit seeds.
+- 2,225 positions and 76,077 transitions, comparing complete ordered legal moves.
+- 7,609 trace decisions, including private knowledge after reveals and recycling.
+- All 1,333 bots in five public positions: identical chosen move and consumed RNG.
+- 45 complete matches: identical final state, knowledge, and action counters.
+- Debug-game traces: identical JSON views, move IDs, history, and explanations.
+- Paired evaluation statistics and seeded arena schedules.
 
-| Finding | Evidence | Status |
-| --- | --- | --- |
-| A5: equality-only move admission accepts non-move/non-card wildcards | `Play(state, unittest.mock.ANY)` skips an ordinary turn. An `ANY` actual card removes the whole hand and enters the pile; an `ANY` declaration leaks `AttributeError`. Move and card field types were not checked before equality against generated moves. | Fixed by a new agent: concrete move and card admission before equality; regressions added across decision phases. |
-| A6: spoofed state/container types pass `isinstance` | A standard-library `Mock(spec=GameState)` with copied fields yields moves but fails inside `Play`; mocked tuple zones leak `TypeError`. | Fixed: concrete state records and genuine tuple type checks, retaining real tuple subclasses; regressions added. |
+This is extensive behavioral evidence, not an exhaustive proof over every possible
+manually constructed state. Rust-owned values replace Python's object-type checks;
+public state validation and illegal-action rejection remain tested.
 
-The round-3 snapshot is
-`bb2431d44389c8c2d3bda197aedca24a26bbbb7bf28713d41303bff58a86523b`.
-All 69 persistent methods and the README example pass on this snapshot. A
-focused standard-library trace exercises all 219 executable source lines
-(excluding the compiler's synthetic line 0); A5 demonstrates that line coverage
-alone does not establish correctness. The API auditor otherwise passed 28,288
-boundary calls and verified A1–A4. The gameplay auditor reported no findings in
-49,210 transitions, 1,280 targeted return-priority resets, and 512 five-ace chains.
-The transition auditor reported no findings across 323,310 generated moves,
-7,848 draws, 30,841 history transitions, and 352 revealed-queen cases. Every
-auditor inspected the same engine hash above without editing files.
+## Arena test independence
 
-## Round 4
+A separate agent authored eight Rust arena contract tests from the public contract
+and original arena tests, without reading the Rust implementation or existing Rust
+tests. The frozen pre-execution SHA-256 was:
 
-Three fresh, read-only auditors examined the frozen engine:
-`23e2f42634c7830021ce54e24c17b3d9d0003e8ad735ddf0a60b97173d6fd436`.
-All three returned **No findings** and independently reported that exact hash.
+```text
+aeac9d09e019a4cde77adf7d9e2a417b3074f1f7087fe3a2b7d37827d09e1ca8
+```
 
-| Auditor | Final result | Independent checks |
-| --- | --- | --- |
-| Gameplay | No findings | 78,772 transitions; 214,796 generated moves across 3,888 positions; both players, every declaration/actual identity, penalty stacks, ace chains, and victory-priority resets. |
-| API | No findings | All six regressions verified; 70,348 invalid-input calls, 2,707 legal transitions with genuine tuple subclasses, and 5,298 serialization/replay transitions. |
-| Transitions | No findings | 112,477 independently predicted transitions, including 27,250 generated actions, scarce draws, partial penalties, actual-card recycling, queen freedom, and sibling replay. |
+All eight passed on first execution. Formatting and an equivalent iterator cleanup
+subsequently changed the file without changing assertions. The authors' separation
+was procedural, not an OS-enforced filesystem restriction. These are historical
+provenance hashes; they are not assertions about later edited test files.
 
-The engine was unchanged throughout this round. All six findings from the
-earlier rounds are fixed and covered by persistent regressions. No unresolved
-findings remain from the final audit round.
+Real-process migration checks compared uninterrupted and resumed 800-game arenas.
+Live status, second-writer rejection, SIGTERM, SIGKILL, and changed worker counts
+preserved the exact ledger, ratings, and CSV. HTTP boundary checks also exercised
+the actual Rust server with the existing UI assets. Subprocess arena tests ran
+with a PATH containing no external runtime.
 
-## Round 5
+## Migration measurements (2026-09-13)
 
-| Finding | Evidence | Status |
-| --- | --- | --- |
-| A7: contradictory victory priority passes validation when both hands are empty | In a response with both hands empty, replacing `provisional_winner` with `1 - turn` is accepted by both public APIs, although the responder necessarily emptied first. Normal game transitions do not produce this state. | Fixed: reject the inconsistent claim with `ValueError` in shared state validation. |
+The audited migration at `8e92832` passed 25 Rust tests, formatting, and Clippy with
+warnings denied on Rust 1.98.1 / macOS ARM64. A final audit fixed overflow handling
+for extreme manually imported draw penalties before mutation and added regression
+coverage for the public and trusted transition paths.
 
-The regression covers both players and final ordinary cards, aces, and sevens.
-It reproduced 18 missing-`ValueError` failures before the fix, checks rejection
-by `MoveGenerator` and `Play` with either legal response, and preserves valid
-acceptance/challenge outcomes. All 74 test methods pass after the fix.
+The reproducible single-thread workload in `examples/benchmark.rs` used 120 games,
+14,874 decisions, and checksum 26,243. Across three runs on the same machine,
+median reference runtime was 6.5288 seconds and optimized Rust was 0.05540 seconds,
+approximately **118× faster**. This measures match execution rather than SQLite.
+The reference timing was taken during migration; only the Rust benchmark remains.
 
-## Verification
+The full 50-round, 1,333-bot comparison completed **66,600 games in 11.12 seconds**
+with eight workers, including SQLite persistence and CSV export. Every ledger row
+matched the reference run: opponents, seats, seeds, results, and decision counts.
+All W/D/L records matched. Maximum Elo difference was 2.2737367544323206e-13 from
+floating-point exponentiation rounding; displayed Elo and ranking were identical.
+These are historical measurements on that machine, not a performance guarantee.
 
-Run all persistent checks with `python3 -B -m unittest -v`.
+## Cleanup verification (2026-09-13)
 
-- `test_bluff_mau_mau.py`: rule examples and 2,262 parameterized rule cases,
-  including final cards, return priority, ace chains, and scarce penalty draws.
-- `test_api_boundaries.py`: malformed public inputs, immutability, replay,
-  serialization, terminal refusal, and RNG isolation.
-- `test_state_properties.py`: complete normal/effect move sets, 1,408
-  actual/declaration/queen-choice response combinations, player symmetry, and
-  bounded seeded action sequences.
+The Cargo manifest, lockfile, and build script now live at the repository root;
+Rust sources are in `src/`, integration tests in `tests/`, and the benchmark in
+`examples/`. The old backend and its tests (29 Python files) and the separate
+migration directory were removed. Two unused wrappers, `DebugGame::reset` and
+`Baseline::from_name`, were deleted after checking all callers. Cargo now uses
+its standard target discovery instead of redundant target declarations.
 
-On the round-4 snapshot, all 73 test methods and 11,873 counted parameterized
-subtests pass; additional assertions run inside unwrapped loops. The README
-example also passes. A focused standard-library trace across 61 methods covers
-all 224 executable source lines. Verification ran on Python 3.14.7 using only
-the standard library.
+An independent audit read every Rust module, entry point, benchmark, build script,
+and integration test. All dependencies and remaining private helpers have callers.
+Documented public APIs and the actively consumed reference fixture were retained.
+The source/documentation sweep found no obsolete backend launch commands, deleted
+source links, or Python source/cache files in the project. Local Markdown links
+in all 13 project documents resolve. Operational documentation and comments now
+describe the current Rust backend; historical verification is explicitly labeled.
+
+Post-cleanup validation passed:
+
+- All 25 Rust tests, including the unchanged 76,077 reference transitions.
+- `cargo clippy --locked --all-targets -- -D warnings` and formatting checks.
+- Both existing Node checks and all 10 unchanged Chrome integration tests.
+- Server asset resolution from the root Cargo layout, HTTP boundaries, and presets.
+- The deterministic benchmark: 120 games, 14,874 decisions, checksum 26,243.
+- A fresh 66,600-game arena compared with the previous Rust run: every game row,
+  all player records including Elo, and the entire CSV matched exactly.
+- The status command reads the completed run successfully; arena tests retain
+  resume, changed-worker-count, locking, and invalid-input coverage.
+
+The post-cleanup run is `runs/20260913-013745-060170-rust-arena/`; the previous
+comparison run is `runs/20260913-012802-340092-rust-arena/`. Runs are ignored user
+data. Source fingerprints intentionally change after source or manifest edits;
+existing results remain readable, while resume requires the same compiled build.
+
+The browser test launcher now starts the Rust server and stops it after the suite.
+No UI HTML, CSS, JavaScript, fonts, card assets, or browser-test assertions changed.
+Only obsolete backend references in UI documentation/test configuration were updated.

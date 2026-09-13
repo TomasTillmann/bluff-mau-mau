@@ -29,33 +29,6 @@ impl Default for Baseline {
 }
 
 impl Baseline {
-    pub fn from_name(name: &str) -> Result<Self, String> {
-        match name {
-            "RandomLegal[uniform]" => Ok(Self::RandomLegal),
-            "HonestFirst[B0-N0-C0]" => Ok(Self::HonestFirst),
-            _ => {
-                let values = name
-                    .strip_prefix("MixedGreedy[B")
-                    .and_then(|tail| tail.strip_suffix(']'))
-                    .ok_or("Unknown baseline name")?;
-                let (bluff, tail) = values.split_once("-N").ok_or("Invalid MixedGreedy name")?;
-                let (no_truth_bluff, challenge) =
-                    tail.split_once("-C").ok_or("Invalid MixedGreedy name")?;
-                let percentage =
-                    |value: &str| value.parse::<u8>().map_err(|_| "Invalid bot percentage");
-                let bot = Self::mixed(
-                    percentage(bluff)?,
-                    percentage(no_truth_bluff)?,
-                    percentage(challenge)?,
-                )?;
-                if bot.name() != name {
-                    return Err("Use the canonical parameterized baseline name".into());
-                }
-                Ok(bot)
-            }
-        }
-    }
-
     pub fn mixed(bluff: u8, no_truth_bluff: u8, challenge: u8) -> Result<Self, String> {
         if [bluff, no_truth_bluff, challenge]
             .iter()

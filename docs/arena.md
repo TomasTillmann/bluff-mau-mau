@@ -1,131 +1,115 @@
 # Persistent baseline arena
 
-Python 3.10+, standard library only, macOS/Linux. Reuse the existing match runner
-and private observations unchanged. This public contract precedes implementation
-and independent tests.
+Build with `cargo build --release` from the repository root. The Rust arena uses
+worker threads, the existing match runner, and private bot observations.
 
-## Usage
+## Usage and schedule
 
 ```sh
-python3 -B -m src.engines.arena --rounds 50 --workers 8
-python3 -B -m src.engines.arena --roster basic --rounds 75 --workers 4
-python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --workers 8
-python3 -B -m src.engines.arena --resume runs/EXACT-RUN-DIRECTORY --rounds 100
-python3 -B -m src.engines.arena --status runs/EXACT-RUN-DIRECTORY --top 20
+./target/release/arena --rounds 50 --workers 8
+./target/release/arena --roster basic --rounds 75 --workers 4
+./target/release/arena --resume runs/EXACT-DIRECTORY --workers 8
+./target/release/arena --resume runs/EXACT-DIRECTORY --rounds 100
+./target/release/arena --status runs/EXACT-DIRECTORY --top 20
 ```
 
-The default `all` roster contains RandomLegal, HonestFirst, and every one of the
-1,331 MixedGreedy configurations. `basic` contains the three default bots.
-Names retain their parameters. New runs go under `runs/<local-date-and-time-to-
-microseconds>-arena/`. `--runs-dir` changes the parent directory. New-run defaults:
-seed 0, 50 paired rounds, 1,000 decisions per game, Elo 1000, K=20. `--seed` and
-`--max-decisions` override those two settings. Workers default to min(8, CPU count)
-and must be positive. `--top` controls terminal rows (default 20); exports contain
-all entrants. Resume uses the stored configuration; only workers, top, and the
-target round count can change. A new round target may extend but never shrink the
-stored target. `--resume` and `--status` are mutually exclusive. Invalid options
-must fail before creating a run or changing an existing run.
+The default `all` roster contains RandomLegal, HonestFirst, and all 1,331
+MixedGreedy configurations; `basic` contains the three defaults. Names include
+parameters. New runs go under `runs/<local-date-and-time-to-microseconds>-rust-arena/`.
+`--runs-dir` changes the parent. Defaults are seed 0, 50 paired rounds, 1,000
+decisions per game, Elo 1000, and K=20. `--seed` and `--max-decisions` override
+those settings. Workers default to min(8, CPU count) and must be positive.
+`--top` controls terminal rows (default 20); CSV exports contain every entrant.
 
-Every paired round gives each entrant one opponent and two games with exchanged
-seats, except one bye when the entrant count is odd. Shuffle a circle schedule
-from the run seed; each opponent appears once per full cycle. Shuffle afresh for
-the next cycle. Pair order is also deterministic. Both legs use the same game
-seed and same per-seat bot seeds; different pairs have distinct game seeds. Seeds
-do not depend on Python's process-randomized hash or worker completion order.
-For 1,333 entrants, 50 rounds = 66,600 games, 98 or 100 per entrant. A complete
-cycle takes 1,333 rounds. For the three basic bots, 75 rounds = 150 games and
-exactly 100 per entrant. `rounds` always means total target, not additional rounds.
+Resume retains the stored configuration; only workers, top, and the total round
+target can change. A target may extend but never shrink. `--resume` and `--status`
+are mutually exclusive; status accepts `--top` but not workers or rounds.
+Invalid options fail before creating or changing a run.
 
-## Results and persistence
+Each paired round gives every entrant one opponent and **two games with exchanged
+seats**, except for one bye when the roster size is odd. A seeded, shuffled circle
+schedule visits each opponent once per full cycle and shuffles afresh for the next
+cycle. Pair order is deterministic. Both legs share the game seed and per-seat
+policy seeds; different pairs have distinct game seeds. Scheduling and rating
+order do not depend on worker completion timing.
 
-Every entrant starts at Elo 1000. Each game updates both players simultaneously:
-E_A = 1 / (1 + 10 ** ((R_B - R_A) / 400)); delta = 20 * (S_A - E_A).
-New ratings are R_A + delta and R_B - delta, without rounding persisted values.
-S_A is 1 for a win, 0 for a loss, 0.5 for an arena draw. Rating updates follow
-schedule order, independent of process speed and interruption/resume.
+| Roster and target | Games | Coverage |
+| --- | ---: | --- |
+| 1,333 bots, 50 rounds | 66,600 | 98 or 100 per bot; sampled opponents |
+| 1,333 bots, 1,333 rounds | 1,775,556 | Every pair twice |
+| 1,333 bots, 19,995 rounds | 26,633,340 | Every pair 30 times |
+| 3 basic bots, 75 rounds | 150 | Exactly 100 per bot |
 
-The game has no natural draw result. Reaching max_decisions is an **arena draw**,
-worth half a point each; preserve `reason="max_decisions"` in the game ledger.
-This does not modify the rules or pretend the underlying game finished. A normal
-win has `reason="win"`. A bot exception/worker failure aborts the run with an error,
-never awards a win or draw, and leaves uncommitted games pending for resume.
+## Ratings and ranking
 
-Rank by score_rate = (wins + draws/2) / games, descending; then by games descending,
-wins descending, and name ascending. Unplayed entrants sort after played entrants
-and have score_rate null. Elo never breaks ranking ties. Also display points,
-games, wins, draws, losses and Elo. Early scores and different opponent samples
-are noisy; this is a baseline comparison, not a statistical strength guarantee.
+Each game updates both ratings simultaneously without rounding stored values:
 
-`arena.sqlite3` is authoritative: configuration, full game ledger, and all Elo /
-W-D-L updates. A single coordinator commits both legs of each pair and all four
-player updates in one SQLite transaction. Unique game IDs prevent duplicate
-credit; committed results form a contiguous schedule prefix. No second writer may
-run the same directory concurrently; read-only status remains available. A crash
-or forced kill preserves committed pairs; an unfinished/uncommitted pair replays
-from its original seeds. Ctrl-C and SIGTERM stop dispatching and exit cleanly
-after bounded in-flight baseline work. Restart is at pair granularity, not from a
-saved mid-game position. There is no pickled executable state.
+```text
+expected_a = 1 / (1 + 10 ^ ((rating_b - rating_a) / 400))
+delta = 20 * (score_a - expected_a)
+new_a = rating_a + delta
+new_b = rating_b - delta
+```
 
-Print progress periodically (at least every 5 seconds while games complete) and
-at exit. Export the full sorted `leaderboard.csv` using atomic replacement at
-progress/exit. CSV is derived and can lag after a forced kill; `--status` reads
-fresh SQLite data. Store the source fingerprint of the actual game/policy/runner
-code, arena format version and Python version; refuse to mix changed code/runtime
-into an old run. Changing worker count is safe. Rating and schedule state must
-survive abrupt process exit. Ignore `runs/` in git.
+`score_a` is 1 for a win, 0 for a loss, and 0.5 for an arena draw. Reaching the
+decision cutoff counts as an **arena draw**, stored with `reason="max_decisions"`;
+it does not invent a game-rule draw or a finished underlying state. A normal win
+has `reason="win"`. A bot error or worker failure aborts without awarding a result.
 
-## Python API (src.engines.arena)
+Rank by `(wins + draws/2) / games` descending, then games descending, wins descending,
+and name ascending. Elo does not break ties. Unplayed entrants sort last and have
+no score rate. Display points, games, W/D/L, and Elo. Partial schedules compare
+different opponent samples, so early rankings are only preliminary evidence.
 
-- `baseline_roster(kind="all") -> dict[str, Bot]`; accepts `all` or `basic`.
-- `round_pairs(names, seed, round_index) -> tuple[tuple[str, str], ...]`.
-  Zero-based round index. At least two unique nonempty string names; integer seed
-  (not bool); nonnegative integer round_index (not bool). No mutation/global RNG.
-- `elo_update(rating_a, rating_b, score_a, k=20) -> tuple[float, float]`.
-  Finite numeric ratings (not bool), score in {0, 0.5, 1}, finite positive numeric K.
-  Reject invalid input with ValueError; support large finite rating differences.
-- `create_run(parent="runs", *, roster="all", seed=0, rounds=50,
-  max_decisions=1000) -> pathlib.Path`. Validate before filesystem mutation.
-- `run_arena(path, *, workers=None, rounds=None, max_pairs=None) -> list[dict]`.
-  Resume or continue the created run; `max_pairs` optionally limits newly committed
-  pairs during this call (nonnegative int, useful for bounded batches); it does not
-  change the target. Only positive integer workers/rounds accepted (not bool).
-  Changing a target below the stored target is rejected even before any games.
-- `standings(path) -> list[dict]` reads authoritative results without a writer lock.
-  Each row contains at least `rank` (one-based), `name`, `elo`, `games`, `wins`,
-  `draws`, `losses`, `points`, `score_rate`. All roster members appear even at zero.
+## Persistence and stopping
 
-Persistence table `games` exposes at least: `id` (zero-based contiguous),
-`round_index`, `seat0`, `seat1`, `seed`, `bot_seed0`, `bot_seed1`, `winner` (seat or
-NULL), `reason`, `decisions`. Tests may read these with sqlite3. Config layout and
-other tables are implementation details. API errors for invalid settings/config,
-concurrent run, and runtime/source mismatch should be clear ValueError/RuntimeError
-rather than silently resetting state. CLI prints errors and returns nonzero.
+`arena.sqlite3` is authoritative for configuration, game ledger, Elo, and W/D/L.
+One coordinator commits both legs of a pair and all player updates in one SQLite
+transaction, using WAL and synchronous FULL. Committed game IDs form a contiguous
+schedule prefix. A file lock rejects a second writer; status remains available.
 
-## Verification (2026-09-13)
+The worker queue has bounded lookahead. Results commit in schedule order. Ctrl-C
+or SIGTERM stops dispatch and finishes the current earliest pair; remaining
+uncommitted work is pending. SIGKILL also preserves committed pairs. Resume replays
+only unfinished work from the same seeds, at pair granularity rather than from a
+saved mid-game position. Threads share the process lifetime, so a killed arena
+leaves no worker processes. Worker count may change between invocations.
 
-`python3 -B -m unittest -q` passed all 197 tests on Python 3.14.7. The 16 new
-arena tests were authored by a fresh agent using only this public contract and
-the rules, without reading/importing/running the implementation or existing tests.
-They passed unchanged on first execution. A later housekeeping edit closed the
-test helpers' SQLite connections; assertions and fixtures stayed unchanged.
-Final `tests/arena/test_arena.py` SHA256:
-`66728689f3009bca17783062012a69afd4946540d7a8d1fa8cfd34ae4800316a`.
-Blindness was enforced by agent instructions and separated context, not an OS
-filesystem restriction.
+The coordinator prints progress and atomically replaces the complete sorted
+`leaderboard.csv` every five seconds while games complete, and at exit. CSV may
+lag after a forced kill; status reads fresh database records.
 
-An independent auditor then exercised real subprocess failures against the final
-implementation: live read-only status, concurrent-writer rejection, SIGTERM,
-coordinator-only SIGKILL with worker cleanup, and a killed worker. Each interrupted
-run resumed with a different worker count and exactly matched an uninterrupted
-240-game reference ledger and ratings. SIGTERM exited in 0.22 seconds and committed
-only its current pair; queued work remained pending. Independent ledger replay
-verified W/D/L, Elo, contiguous IDs, paired seats/seeds, and CSV consistency.
-Changed source/Python/format fingerprints were rejected without score mutation.
-The final audited `src/engines/arena.py` SHA256 is
-`3e4af03ea817f43a7974e843d9e4efef639a9562caac83f838cf2f7a5b776272`.
+Runs use format 2 and a fingerprint of the compiled core/policies/runner/arena,
+Cargo manifest and lockfile, compiler, and platform. A changed fingerprint is
+rejected on resume. Editing sources cannot relabel an already-built executable.
+Historical runs from the removed Python implementation can still be inspected
+with `--status`, but cannot be resumed by Rust. Results are user data under the
+git-ignored `runs/` directory, not executable legacy code.
 
-A full-grid pilot exposed idle workers behind unusually long games. A bounded
-lookahead of eight pairs per worker now keeps workers occupied; rating commits
-remain in schedule order. The full test suite and subprocess failure audit were
-repeated after this change. No game engine, bot policy, or web implementation was
-changed for the arena.
+## Rust API
+
+All fallible operations below return `Result<_, String>` from `engines::arena`:
+
+- `baseline_roster(kind: &str)` returns baseline bots for `"all"` or `"basic"`.
+- `round_pairs(names: &[String], seed: i64, round_index: usize)` returns name pairs.
+  Names must be unique/nonempty, with at least two entrants; the index is zero-based.
+- `elo_update(a: f64, b: f64, score: f64, k: f64)` returns the updated rating pair.
+  Ratings must be finite, score must be 0/0.5/1, and K finite and positive.
+- `create_run(parent: &Path, roster: &str, seed: i64, rounds: usize,
+  max_decisions: usize)` validates settings and returns the new directory path.
+- `run_arena(path: &Path, options: RunOptions)` runs/resumes and returns standings.
+  Options include worker count, optional total rounds, optional `max_pairs` limiting
+  newly committed pairs, terminal row count, quiet output, and a shared atomic stop
+  flag. A pair limit does not change the saved round target.
+- `standings(path: &Path)` reads authoritative scores without a writer lock.
+- `config(path: &Path)` reads the saved configuration.
+
+Each `Standing` contains one-based rank, name, Elo, games, wins, draws, losses,
+points, and optional score rate. All roster members appear, even before playing.
+The ledger's `games` table stores zero-based `id`, `round_index`, `seat0`, `seat1`,
+`seed`, `bot_seed0`, `bot_seed1`, nullable winning seat, reason, and decisions.
+CLI errors are reported with a nonzero exit; invalid settings, lock contention,
+or fingerprint mismatch never silently reset a run.
+
+[The audit record](../AUDIT.md) describes the independent parity and persistence
+checks, including forced termination and resume.
