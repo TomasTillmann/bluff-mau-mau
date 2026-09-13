@@ -25,16 +25,21 @@ Bricolage Grotesque is self-hosted in `design-system/fonts/BricolageGrotesque.tt
 
 ## Opponent chooser
 
-The default page uses the same paper surface, Bricolage headings, native controls,
-and vermilion Play buttons. A labeled search field supports fuzzy name and strategy
-matching, exact parameter tokens, and Enter to start the first match. Simple rows
-show the bot name, description, rating, win rate, and W/D/L record; matching quality
-orders search results, then rating. Show more reveals another 40 rows.
+The default page pairs a bottle-green table and a fan of original deck artwork on
+the left with a compact paper opponent list on the right. Bricolage headings,
+native controls, and vermilion Play buttons reuse the game components. On smaller
+screens, a short green introduction sits above the list.
+
+A labeled search field supports fuzzy name and strategy matching, exact parameter
+tokens, and Enter to start the first match. Compact rows retain each full bot name,
+with parameters on a separate line, plus Elo, win rate, and W/D/L. Matching quality
+orders search results, then rating. The results scroll inside a labeled,
+keyboard-accessible region; Show more reveals another 40 rows.
 
 Keep arena Elo and test Elo visibly labeled: the former uses the saved baseline
-tournament, the latter a separate top-ten benchmark. The date and fixed nature of
-these records appear below the list. The table header provides New game and Choose
-opponent. Debug mode remains available from the chooser.
+tournament, the latter a separate top-ten benchmark. A native expandable note below
+the list explains the fixed rating date and strategy parameters. The table header
+provides New game and Change opponent. Debug mode remains available from the chooser.
 
 ## Source assets
 

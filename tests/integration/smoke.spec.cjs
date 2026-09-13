@@ -416,9 +416,10 @@ function privatePlayState(state) {
 async function chooseNormalBot(page, query = 'Tactical') {
   await page.goto('/');
   await expect(page.locator('#bot-search')).toBeVisible();
+  await ready(page);
   await page.locator('#bot-search').fill(query);
   const row = page.locator('button[data-bot-id]').first();
-  await expect(row).toContainText(query);
+  await expect(row).toHaveAccessibleName(new RegExp(query));
   const id = await row.getAttribute('data-bot-id');
   const started = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
   await row.click();
@@ -431,18 +432,66 @@ async function chooseNormalBot(page, query = 'Tactical') {
   return state;
 }
 
+test('opponent loading recovers from a failed request through Retry', async ({ page }) => {
+  let releaseCatalog;
+  const pendingCatalog = new Promise(resolve => { releaseCatalog = resolve; });
+  await page.route('**/api/bots', async route => {
+    await pendingCatalog;
+    await route.abort('failed');
+  }, { times: 1 });
+  await page.goto('/');
+  try {
+    await expect(page.locator('#game')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator('#bot-search')).toBeDisabled();
+  } finally { releaseCatalog(); }
+  await expect(page.locator('#retry')).toBeVisible();
+  await ready(page);
+  await expect(page.locator('#game')).not.toContainText('Loading opponents');
+  await expect(page.locator('#error')).toBeVisible();
+
+  const loaded = page.waitForResponse(response => response.url().endsWith('/api/bots'));
+  await page.locator('#retry').click();
+  expect((await loaded).ok()).toBeTruthy();
+  await expect(page.locator('#bot-search')).toBeVisible();
+  await expect(page.locator('#bot-search')).toBeEnabled();
+  await expect(page.locator('#error')).not.toBeVisible();
+  await page.locator('#bot-search').fill('Tactical');
+  const started = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Play against Tactical[C0]', exact: true }).click();
+  const response = await started;
+  expect(response.ok()).toBeTruthy();
+  const state = await response.json();
+  privatePlayState(state);
+  await ready(page);
+  await expect(page.locator('#player-1 strong')).toHaveText(state.bot.name);
+});
+
 test('normal startup finds a bot from a typo and keeps opponent cards private', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#bot-search')).toBeVisible();
+  await ready(page);
+  const layout = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const results = document.querySelector('.bot-list');
+    return {
+      height: innerHeight, pageHeight: document.documentElement.scrollHeight,
+      width: innerWidth, pageWidth: document.documentElement.scrollWidth,
+      listHeight: results.clientHeight, contentsHeight: results.scrollHeight,
+    };
+  });
+  expect(layout.pageHeight, 'The desktop chooser scrolls its results, not the whole page').toBeLessThanOrEqual(layout.height + 1);
+  expect(layout.pageWidth).toBeLessThanOrEqual(layout.width);
+  expect(layout.contentsHeight).toBeGreaterThan(layout.listHeight);
   const catalog = await (await page.request.get('/api/bots')).json();
   const tactical = catalog.bots.find(bot => bot.id === 'Tactical[C0]');
   expect(tactical).toBeTruthy();
   await page.locator('#bot-search').fill('tactcal');
   const row = page.locator('button[data-bot-id="Tactical[C0]"]');
   await expect(row).toBeVisible();
-  await expect(row).toContainText(/Elo/i);
-  await expect(row).toContainText(/W.*D.*L|wins|draws|losses/i);
-  const numbers = (await row.innerText()).replace(/[,\s]/g, '');
+  const metadata = page.locator('li.bot-row').filter({ has: row });
+  await expect(metadata).toContainText(/Elo/i);
+  await expect(metadata).toContainText(/W.*D.*L|wins|draws|losses/i);
+  const numbers = (await metadata.innerText()).replace(/[,\s]/g, '');
   expect(numbers).toContain(String(tactical.wins));
   await page.locator('#bot-search').fill('zzzxqv-no-such-engine');
   await expect(page.locator('button[data-bot-id]')).toHaveCount(0);
@@ -455,8 +504,8 @@ test('normal startup finds a bot from a typo and keeps opponent cards private', 
   privatePlayState(state);
   await ready(page);
   await expect(page.locator('#player-0')).toHaveText('You');
-  await expect(page.locator('#player-1')).toHaveText(tactical.name);
-  await expect(page.getByText(/DEBUG/i)).toHaveCount(0);
+  await expect(page.locator('#player-1 strong')).toHaveText(tactical.name);
+  await expect(page.locator('#debug-status')).not.toBeVisible();
   const backs = page.locator('[data-opponent-card]');
   await expect(backs).toHaveCount(state.hand_counts[1]);
   await expect(backs.locator('[data-card]')).toHaveCount(0);
@@ -504,11 +553,11 @@ test('normal rematch retains the bot and the chooser can select another on mobil
   await expect(page.locator('#player-0')).not.toBeVisible();
   await page.locator('#bot-search').fill('Honest');
   const selected = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
-  await page.locator('button[data-bot-id]').filter({ hasText: 'HonestFirst' }).click();
+  await page.getByRole('button', { name: 'Play against HonestFirst[B0-N0-C0]', exact: true }).click();
   const next = await (await selected).json();
   expect(next.bot.id).toBe('HonestFirst[B0-N0-C0]');
   privatePlayState(next);
   await ready(page);
-  await expect(page.locator('#player-1')).toHaveText(next.bot.name);
+  await expect(page.locator('#player-1 strong')).toHaveText(next.bot.name);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

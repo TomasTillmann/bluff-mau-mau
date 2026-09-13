@@ -15,7 +15,11 @@ git submodule update --init free-playing-cards
 ./target/release/server
 ```
 
-Open <http://127.0.0.1:8767/>. `server --port NUMBER` chooses another local port.
+Keep the server running and open <http://127.0.0.1:8767/>. The HTML file is not a
+standalone game: opening `web/index.html` redirects to this address, preserving
+the query and fragment. `server --port NUMBER` chooses another local port; open
+that localhost address directly.
+
 Choose from **1,335 bots**: all 1,333 baseline configurations, `Tactical[C0]`, and
 `BeliefSearch[S8-H40-conservative]`. Fuzzy search accepts names, strategies, and
 parameters such as `B0 N100 C40`. The human sits below the opponent and always

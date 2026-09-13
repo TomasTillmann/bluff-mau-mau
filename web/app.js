@@ -8,7 +8,6 @@ const debugMode = new URLSearchParams(location.search).get('debug') === '1';
 let bots = [];
 let botQuery = '';
 let visibleBots = 40;
-let requestedBot = null;
 let state = null;
 let actual = null;
 let declared = null;
@@ -25,6 +24,7 @@ const suitMark = code => `<svg class="bp-suit${'HD'.includes(code) ? ' bp-red' :
 const cardMark = card => `<span role="img" aria-label="${cardName(card)}">${rank(card)}${suitMark(suit(card))}</span>`;
 const cardImage = (card, name = '') => `<img src="${card ? cardPath(card) : backPath}" alt="${escapeHTML(name)}" width="1500" height="2100" draggable="false">`;
 const playerName = player => debugMode ? `Player ${player + 1}` : player === 0 ? 'You' : state?.bot?.name || 'Opponent';
+const winnerText = player => !debugMode && player === 0 ? 'You win' : `${playerName(player)} wins`;
 const pluralCards = count => `${count} ${count === 1 ? 'card' : 'cards'}`;
 const handCount = player => state.hand_counts?.[player] ?? state.hands[player].length;
 const endpoint = action => `/api/${debugMode ? '' : 'play/'}${action}`;
@@ -82,13 +82,13 @@ function renderBotResults() {
   const matched = bots.map(bot => ({ bot, score: fuzzyScore(bot, botQuery) }))
     .filter(item => item.score >= 0).sort((a, b) => a.score - b.score || b.bot.elo - a.bot.elo || a.bot.name.localeCompare(b.bot.name));
   document.querySelector('#bot-count').textContent = `${number(matched.length)} ${matched.length === 1 ? 'opponent' : 'opponents'}${botQuery ? ' found' : ' available'}`;
+  document.querySelector('#bot-order').textContent = botQuery ? 'Best matches first' : 'Highest rated first';
   document.querySelector('#bot-results').innerHTML = matched.length ? matched.slice(0, visibleBots).map(({ bot }) => `
     <li class="bot-row">
-      <div class="bot-identity"><strong>${escapeHTML(bot.name)}</strong><p>${escapeHTML(bot.description)}</p></div>
+      <div class="bot-identity" title="${escapeHTML(bot.description)}"><strong>${escapeHTML(bot.name).replace('[', '<span class="bot-parameters">[')}</span></strong><p class="bp-sr-only">${escapeHTML(bot.description)}</p><div class="bot-record" title="${number(bot.games)} games"><span>${number(bot.wins)} / ${number(bot.draws)} / ${number(bot.losses)}</span><span>W / D / L</span></div></div>
       <div class="bot-rating"><strong>${Math.round(bot.elo)}</strong><span>${ratingKind(bot)}</span></div>
       <div class="bot-score"><strong>${percentage(bot.wins / bot.games)}</strong><span>win rate</span></div>
-      <div class="bot-record"><span>${number(bot.wins)} / ${number(bot.draws)} / ${number(bot.losses)}</span><span>W / D / L · ${number(bot.games)} games</span></div>
-      <button type="button" class="bp-button bp-button--primary bot-play" data-bot-id="${escapeHTML(bot.id)}" aria-label="Play against ${escapeHTML(bot.name)}">Play <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+      <button type="button" class="bp-button bp-button--primary bot-play" data-bot-id="${escapeHTML(bot.id)}" aria-label="Play against ${escapeHTML(bot.name)}">Play</button>
     </li>`).join('') : '<li class="bot-empty"><h3>No matching opponents</h3><p>Try a shorter name or different parameters.</p><button id="clear-search" class="bp-button bp-button--secondary" type="button">Clear search</button></li>';
   const more = document.querySelector('#more-bots');
   more.hidden = matched.length <= visibleBots;
@@ -98,16 +98,21 @@ function renderBotResults() {
 function showBots(focusSearch = false) {
   state = null;
   renderedState = null;
-  requestedBot = null;
   actual = declared = chosenSuit = null;
   game.className = 'bot-lobby';
-  game.innerHTML = `<section class="bot-directory" aria-labelledby="bot-title">
-    <div class="bot-intro"><h2 id="bot-title">Choose your opponent</h2><p>A head-to-head game of Blafovací Prší. Your hand stays private.</p></div>
-    <div class="bot-search"><label for="bot-search">Find a bot</label><div class="bot-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="bot-search" type="search" placeholder="Name or parameters, e.g. honest or B0 N100 C40" autocomplete="off" spellcheck="false" aria-describedby="search-help"></div><p id="search-help">Search names and strategies. Typos are okay. Press Enter to play the first match.</p></div>
-    <div class="bot-list-heading"><p id="bot-count" role="status" aria-live="polite"></p><p>Ordered by rating within search matches</p></div>
-    <ul id="bot-results" class="bot-results" aria-label="Available opponents"></ul>
-    <button id="more-bots" type="button" class="bp-button bp-button--secondary bot-more" hidden>Show more</button>
-    <p class="bot-rating-note">Arena Elo comes from the saved baseline tournament. Test Elo comes from a separate top-ten benchmark. Records are from 13 September 2026; these games do not change the ratings.</p>
+  game.innerHTML = `<section class="bp-table bot-welcome" aria-labelledby="welcome-title">
+    <div><h2 id="welcome-title">Blafovací<br> Prší</h2><p>A little luck. A little bluff.</p></div>
+    <div class="bp-hand bot-fan" aria-hidden="true">${['7H', null, 'QC'].map((card, index) => `<div class="bp-card" style="--bp-fan-angle:${(index - 1) * 14}deg;--bp-fan-drop:${index === 1 ? 0 : 20}px">${cardImage(card)}</div>`).join('')}</div>
+    <p class="bot-welcome-note">Take a seat against a bot.<br>Your hand stays private.</p>
+  </section><section class="bot-directory" aria-labelledby="bot-title">
+    <h2 id="bot-title">Choose an opponent</h2>
+    <div class="bot-search"><label for="bot-search">Find a bot</label><div class="bot-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="bot-search" type="search" placeholder="Name or parameters · e.g. B0 N100 C40" autocomplete="off" spellcheck="false" aria-describedby="search-help"></div><p id="search-help">Typos are okay. Enter plays the first match.</p></div>
+    <div class="bot-list-heading"><p id="bot-count" role="status" aria-live="polite"></p><p id="bot-order"></p></div>
+    <div class="bot-list" tabindex="0" role="region" aria-label="Opponent results">
+      <ul id="bot-results" class="bot-results" aria-label="Available opponents"></ul>
+      <button id="more-bots" type="button" class="bp-button bp-button--secondary bot-more" hidden>Show more</button>
+    </div>
+    <details class="bot-rating-note"><summary>About the ratings and strategies</summary><p>Arena Elo is from the saved baseline tournament; test Elo is from a separate top-ten benchmark. Records: 13 September 2026. Your games do not change these ratings.</p><p>MixedGreedy: B is the bluff chance with a truthful play available; N is the bluff chance without one; C is the chance of calling an uncertain bluff. Shared obvious moves take priority.</p></details>
   </section>`;
   document.querySelector('#bot-search').value = botQuery;
   renderBotResults();
@@ -119,8 +124,11 @@ function showBots(focusSearch = false) {
 async function loadBots() {
   busy = true;
   document.querySelector('#error').hidden = true;
-  game.className = 'bot-lobby';
-  game.innerHTML = '<p class="game-loading">Loading opponents…</p>';
+  showBots();
+  document.querySelector('#bot-search').disabled = true;
+  document.querySelector('#bot-count').textContent = 'Finding opponents…';
+  document.querySelector('#bot-results').innerHTML = '<li class="bot-empty">Loading opponents…</li>';
+  document.querySelector('#more-bots').hidden = true;
   game.setAttribute('aria-busy', 'true');
   try {
     const response = await fetch('/api/bots', { signal: AbortSignal.timeout(10000) });
@@ -129,7 +137,8 @@ async function loadBots() {
     bots = catalog.bots;
     showBots();
   } catch (failure) {
-    game.innerHTML = '<p class="game-loading">Opponents could not be loaded.</p>';
+    document.querySelector('#bot-count').textContent = 'Opponents unavailable';
+    document.querySelector('#bot-results').innerHTML = '<li class="bot-empty"><h3>The table is unavailable</h3><p>Check that the local game server is running, then retry.</p></li>';
     const error = document.querySelector('#error');
     error.hidden = false;
     error.innerHTML = `<span>${escapeHTML(failure.message)}</span><button id="retry" type="button" class="bp-button bp-button--secondary bp-button--compact">Retry</button>`;
@@ -195,7 +204,7 @@ function moveExplain() {
 
 function table() {
   const faceUp = ['Starting card', 'Revealed'].includes(state.top_status);
-  return `<section class="bp-table game-table" aria-label="Card table">${hand(1)}<div class="bp-piles">${pile('Draw pile', state.deck_count, null, drawPileAction())}${pile('Discards', state.pile_count, faceUp ? state.top : null, state.legal_moves.find(move => move.type === 'challenge'))}<div class="bp-declared"><p class="bp-declared__title">${faceUp ? 'Top' : 'Declared'} ${cardMark(state.top)}</p>${state.chosen_suit ? `<p class="game-declared-suit">Now ${suitMark(state.chosen_suit)} ${suits[state.chosen_suit]}</p>` : ''}</div></div><div class="bp-effects"><span>${effectsText()}</span></div>${state.winner !== null ? `<p class="game-winner">${playerName(state.winner)} wins.</p>` : state.provisional_winner !== null ? `<p class="game-pending-win">${playerName(state.provisional_winner)} is out for now. The return attempt is still in play.</p>` : ''}<div class="game-player-result">${hand(0)}${moveExplain()}</div></section>`;
+  return `<section class="bp-table game-table" aria-label="Card table">${hand(1)}<div class="bp-piles">${pile('Draw pile', state.deck_count, null, drawPileAction())}${pile('Discards', state.pile_count, faceUp ? state.top : null, state.legal_moves.find(move => move.type === 'challenge'))}<div class="bp-declared"><p class="bp-declared__title">${faceUp ? 'Top' : 'Declared'} ${cardMark(state.top)}</p>${state.chosen_suit ? `<p class="game-declared-suit">Now ${suitMark(state.chosen_suit)} ${suits[state.chosen_suit]}</p>` : ''}</div></div><div class="bp-effects"><span>${effectsText()}</span></div>${state.winner !== null ? `<p class="game-winner">${winnerText(state.winner)}.</p>` : state.provisional_winner !== null ? `<p class="game-pending-win">${playerName(state.provisional_winner)} ${!debugMode && state.provisional_winner === 0 ? 'are' : 'is'} out for now. The return attempt is still in play.</p>` : ''}<div class="game-player-result">${hand(0)}${moveExplain()}</div></section>`;
 }
 
 function canDeclare(card) {
@@ -244,7 +253,7 @@ function panel() {
   const needsSuit = (declared && rank(declared) === 'Q') || (actual && rank(actual) === 'Q' && state.legal_moves.some(item => item.type === 'play' && item.actual === actual && item.declared === actual));
   const reason = playReason();
   const responding = state.phase === 'response';
-  const title = state.winner !== null ? (!debugMode && state.winner === 0 ? 'You win' : `${playerName(state.winner)} wins`) : !debugMode ? (busy ? 'Updating the table…' : responding ? 'Your response' : 'Your turn') : `${playerName(state.turn)} ${responding ? 'to respond' : 'to act'}`;
+  const title = state.winner !== null ? winnerText(state.winner) : !debugMode ? (busy ? 'Updating the table…' : responding ? 'Your response' : 'Your turn') : `${playerName(state.turn)} ${responding ? 'to respond' : 'to act'}`;
   return `<aside class="bp-action-panel game-panel" aria-labelledby="actor">
     <h2 id="actor" class="bp-action-panel__title" tabindex="-1">${title}</h2>
     <div class="game-selection">
@@ -256,7 +265,7 @@ function panel() {
     <p class="bp-play-summary">${actual && declared ? `Play ${cardMark(actual)} as ${cardMark(declared)}` : 'Choose your declaration'}</p>
     <p id="play-reason" class="game-play-reason" data-invalid="${!!declared && !!reason}">${escapeHTML(reason || declarationEffect())}</p>
     <div class="bp-actions"><button id="play-card" type="button" class="bp-button bp-button--primary bp-button--wide" ${move ? `data-move="${move.id}"` : ''} ${reason ? 'aria-describedby="play-reason"' : ''} ${!move || busy ? 'disabled' : ''}>Play</button>${acceptMove ? `<button id="move-accept" type="button" class="bp-button bp-button--secondary bp-button--wide" data-move="${acceptMove.id}" title="${escapeHTML(actionLabel('accept'))}" ${busy ? 'disabled' : ''}>Accept declaration</button>` : ''}</div>
-    <section class="bp-history game-history" aria-labelledby="history-title"><h3 id="history-title" class="bp-history__title">Recent moves</h3>${state.history.length ? `<ol class="bp-history__list" reversed tabindex="0" aria-label="Recent moves">${state.history.slice(-6).reverse().map(item => `<li class="bp-history__row"><span class="bp-history__player">${item.player === null ? 'Table' : playerName(item.player)}</span><span>${escapeHTML(item.text)}</span></li>`).join('')}</ol>` : '<p class="game-history-empty">The cards are dealt. Make the first move.</p>'}</section>
+    <section class="bp-history game-history" aria-labelledby="history-title"><h3 id="history-title" class="bp-history__title">Recent moves</h3>${state.history.length ? `<ol class="bp-history__list" reversed tabindex="0" aria-label="Recent moves">${state.history.slice(-6).reverse().map(item => `<li class="bp-history__row"><span class="bp-history__player">${item.player === null ? 'Table' : !debugMode && item.player === 1 ? 'Opponent' : playerName(item.player)}</span><span>${escapeHTML(item.text)}</span></li>`).join('')}</ol>` : '<p class="game-history-empty">The cards are dealt. Make the first move.</p>'}</section>
   </aside>`;
 }
 
@@ -287,7 +296,7 @@ function receive(next) {
   actual = null;
   declared = null;
   chosenSuit = null;
-  announcement.textContent = state.move_explain ? `${state.move_explain.title} ${state.move_explain.detail}` : state.winner !== null ? `${playerName(state.winner)} wins.` : `${playerName(state.turn)} ${state.phase === 'response' ? 'can respond' : 'to act'}. ${effectsText()}.`;
+  announcement.textContent = state.move_explain ? `${state.move_explain.title} ${state.move_explain.detail}` : state.winner !== null ? `${winnerText(state.winner)}.` : `${playerName(state.turn)} ${state.phase === 'response' ? 'can respond' : 'to act'}. ${effectsText()}.`;
 }
 
 function select(intent) {
@@ -313,6 +322,11 @@ async function request(path, body) {
   error.hidden = true;
   game.setAttribute('aria-busy', 'true');
   document.querySelector('#new-game').disabled = true;
+  document.querySelector('#choose-bot').disabled = true;
+  if (!state && !debugMode) {
+    document.querySelector('#bot-search').disabled = true;
+    for (const button of game.querySelectorAll('[data-bot-id]')) button.disabled = true;
+  }
   render();
   announcement.textContent = body ? 'Updating the table…' : 'Loading the table…';
   let success = false;
@@ -325,13 +339,16 @@ async function request(path, body) {
     updateHeader();
     success = true;
   } catch (failure) {
-    error.innerHTML = `<span>${escapeHTML(failure.name === 'TimeoutError' ? 'The table took too long to respond. Refresh its state before trying again.' : failure.message)}</span><button id="retry" type="button" class="bp-button bp-button--secondary bp-button--compact">Refresh table</button>`;
+    const inLobby = !state && !debugMode;
+    if (inLobby) showBots();
+    error.innerHTML = `<span>${escapeHTML(failure.name === 'TimeoutError' ? 'The table took too long to respond. Please try again.' : failure.message)}</span><button id="retry" type="button" class="bp-button bp-button--secondary bp-button--compact">${inLobby ? 'Reload opponents' : 'Refresh table'}</button>`;
     error.hidden = false;
-    if (!state) game.innerHTML = '<p class="game-loading">The table is unavailable. Use Refresh table to reconnect.</p>';
+    if (!state && debugMode) game.innerHTML = '<p class="game-loading">The table is unavailable. Use Refresh table to reconnect.</p>';
   } finally {
     busy = false;
     game.setAttribute('aria-busy', 'false');
     document.querySelector('#new-game').disabled = false;
+    document.querySelector('#choose-bot').disabled = false;
     render(success && (!!body || focused === 'retry'), focused);
     if (!state) document.querySelector('#retry')?.focus();
   }
@@ -341,16 +358,15 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled || busy) return;
   if (button.dataset?.botId) {
-    requestedBot = button.dataset.botId;
-    return void request('/api/play/new', { bot_id: requestedBot });
+    return void request('/api/play/new', { bot_id: button.dataset.botId });
   }
   if (button.id === 'choose-bot') { document.querySelector('#error').hidden = true; return showBots(true); }
   if (button.id === 'more-bots') { visibleBots += 40; return renderBotResults(); }
   if (button.id === 'clear-search') { botQuery = ''; visibleBots = 40; showBots(true); return; }
   if (button.id === 'new-game') return void request(endpoint('new'), debugMode ? {} : { bot_id: state.bot.id });
   if (button.id === 'retry') {
-    if (!debugMode && !state && !requestedBot) return void loadBots();
-    return void request(state || requestedBot ? endpoint('state') : endpoint('new'), state || requestedBot ? undefined : {});
+    if (!debugMode && !state) return void loadBots();
+    return void request(state ? endpoint('state') : endpoint('new'), state ? undefined : {});
   }
   if (!state || state.winner !== null) return;
   if (button.dataset.move !== undefined) {
@@ -371,6 +387,7 @@ document.addEventListener('input', event => {
   botQuery = event.target.value;
   visibleBots = 40;
   renderBotResults();
+  document.querySelector('.bot-list').scrollTop = 0;
 });
 document.addEventListener('keydown', event => {
   if (event.target.id !== 'bot-search' || busy || !['Enter', 'ArrowDown'].includes(event.key)) return;

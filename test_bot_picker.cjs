@@ -2,6 +2,23 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+
+// Opening index.html from the desktop must reach the Rust server before its
+// absolute asset paths resolve against the filesystem root.
+const html = fs.readFileSync('web/index.html', 'utf8');
+const inlineScripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+  .filter(match => !/\bsrc=/.test(match[0])).map(match => match[1]);
+for (const [protocol, search, hash] of [['file:', '', ''], ['file:', '?debug=1', '#table'], ['http:', '?debug=1', '']]) {
+  const redirects = [];
+  const location = { protocol, search, hash, replace: url => redirects.push(url) };
+  for (const script of inlineScripts) vm.runInNewContext(script, { location });
+  assert.deepEqual(redirects, protocol === 'file:' ? [`http://127.0.0.1:8767/${search}${hash}`] : [],
+    'File launch redirects to the server, preserves debug mode, and leaves HTTP alone');
+}
+const firstInline = html.search(/<script(?:\s[^>]*)?>/);
+const firstAbsoluteAsset = html.search(/(?:href|src)="\//);
+assert.ok(firstInline >= 0 && firstInline < firstAbsoluteAsset, 'File launch runs before absolute assets are requested');
+
 const context = vm.createContext({ assert, URLSearchParams, location: { search: '' }, document: {
   querySelector: () => ({}),
   addEventListener() {},

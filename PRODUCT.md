@@ -20,7 +20,7 @@ playing in the browser never changes those ratings.
 Selecting an opponent starts a new game with the human in the bottom seat
 (player 0), moving first. The opponent's cards remain face down, and the server
 plays the bot's moves automatically. New game deals another game against the
-same bot; Choose opponent returns to the chooser. `?debug=1` opens the separate
+same bot; Change opponent returns to the chooser. `?debug=1` opens the separate
 debug table, where both hands are visible and the user controls both players.
 The component showcase remains a separate reference.
 
@@ -43,4 +43,4 @@ only for an exact engine-legal move; queens require an explicitly chosen continu
 suit. Grid selections remain independent and keep the existing bluff action.
 
 ## Constraints
-Use the engine’s legal moves as the source of truth. Every actual card can be used for any declaration returned by `move_generator`; never filter bluffs using card identity or location. All declaration tiles remain visible; illegal declarations are dimmed and disabled. Use native HTML/CSS/JavaScript and the Rust HTTP server. English labels and desktop-first composition with usable narrow layouts are current choices. Normal play exposes only the human hand and legal actions, public state, and the opponent's card count. Bot declarations stay hidden until a challenge reveals the actual card. This is a local game with one shared table per mode, without multiplayer sessions. Use a small, fast Playwright sanity suite in tests/integration for pointer actions, layout stability, and card access; keep its scope in that folder’s AGENTS.md. Continue visual verification through the Chrome extension and detailed logic checks in Rust/Node.
+Use the engine’s legal moves as the source of truth. Every actual card can be used for any declaration returned by `move_generator`; never filter bluffs using card identity or location. All declaration tiles remain visible; illegal declarations are dimmed and disabled. Use native HTML/CSS/JavaScript and the Rust HTTP server. English labels and desktop-first composition with usable narrow layouts are current choices. Normal play exposes only the human hand and legal actions, public state, and the opponent's card count. The actual cards behind bot declarations stay hidden until a challenge reveals them. This is a local game with one shared table per mode, without multiplayer sessions. Use a small, fast Playwright sanity suite in tests/integration for pointer actions, layout stability, and card access; keep its scope in that folder’s AGENTS.md. Continue visual verification in Chrome through Playwright CLI and detailed logic checks in Rust/Node.
