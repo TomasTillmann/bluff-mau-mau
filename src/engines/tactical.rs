@@ -1,6 +1,6 @@
 //! Fast heuristic challenger: truthful tempo, usable follow-ups, and contextual calls.
 use super::{Bot, Observation, baseline::candidates, observation::card_mask};
-use crate::game::{Move, Phase, contribution};
+use crate::game::{Move, Phase, contribution, declarations};
 use crate::rng::PythonRandom;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -43,16 +43,11 @@ impl Tactical {
                 continue;
             }
             // ponytail: local card/tempo evaluation; belief search handles future opponents.
-            let next_suit = chosen_suit.unwrap_or_else(|| declared_card.suit());
+            let followups = declarations(declared_card, chosen_suit, 0, false);
             let continuations = observation
                 .hand
                 .iter()
-                .filter(|&&card| {
-                    card != actual_card
-                        && (card.rank() == 5
-                            || card.rank() == declared_card.rank()
-                            || card.suit() == next_suit)
-                })
+                .filter(|&&card| card != actual_card && followups.contains(&card))
                 .count();
             let mut score = 0.18 * continuations as f64;
             if declared_card.rank() == 7 {
@@ -150,6 +145,49 @@ impl Bot for Tactical {
 mod tests {
     use super::*;
     use crate::game::{Card, Suit};
+
+    #[test]
+    fn effect_declarations_do_not_get_a_queen_followup_bonus() {
+        let card = |text: &str| Card::parse(text).unwrap();
+        let observation = Observation {
+            player: 0,
+            hand: ["QH", "QD", "QC", "QS", "8H", "7C", "8C", "10C", "JC", "KC"]
+                .map(card)
+                .to_vec(),
+            opponent_count: 3,
+            top: card("AC"),
+            chosen_suit: None,
+            phase: Phase::Turn,
+            draw_penalty: 0,
+            skip_pending: false,
+            provisional_winner: None,
+            deck_count: 18,
+            pile_count: 1,
+            known_pile_cards: card_mask(card("AC")),
+            opening_card: true,
+        };
+        let ace = Move::Play {
+            actual_card: card("QC"),
+            declared_card: card("AH"),
+            chosen_suit: None,
+        };
+        let ordinary = Move::Play {
+            actual_card: card("8H"),
+            declared_card: card("9C"),
+            chosen_suit: None,
+        };
+        // All four held queens follow 9C; none follow AH, even the heart queen.
+        for seed in 0..8 {
+            assert_eq!(
+                Tactical::default().best_play(
+                    &observation,
+                    &[ace, ordinary],
+                    &mut PythonRandom::seed(seed),
+                ),
+                Some(ordinary),
+            );
+        }
+    }
 
     #[test]
     fn counters_an_ace_before_accepting_its_skip() {

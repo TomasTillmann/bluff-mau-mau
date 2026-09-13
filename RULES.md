@@ -19,17 +19,17 @@ Players choose only from the legal moves available in the current game state. Th
 
 | Declared card | Effect |
 |---|---|
-| **Queen** | Can be played on **any card unless an ace skip is pending**, including a seven or K♠. It cancels the entire accumulated draw penalty. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
+| **Queen** | Can be declared on any card **except an ace, any seven, or K♠**, even if that top card has no active effect. It cannot cancel a draw penalty. Announce its identity and the suit to continue with **before the opponent accepts or challenges**. The chosen suit cannot then be changed. Another queen may follow. |
 | **Ace** | Accepting immediately skips the opponent's turn; alternatively they can counter only with another ace before accepting. Aces pass the skip onward; they do not accumulate multiple skipped turns. |
 | **Any seven** | Adds **two cards** to the draw penalty. Another seven can counter it. |
-| **K♠** | Adds **four cards**. Only **7♠** adds to it; a queen cancels it. **K♠ can also counter 7♠**. |
+| **K♠** | Adds **four cards**. Only **7♠** adds to its pending penalty. **K♠ can also counter 7♠**. |
 | **Other cards** | No special effect. |
 
-Draw penalties accumulate until someone takes them or plays a queen to cancel them. Taking the penalty clears it and ends that player’s turn. A skipped turn consumes the ace’s skip effect. In either case, the top card still determines the current suit/rank.
+Draw penalties accumulate until someone takes them or a challenge resolves them. Taking the penalty clears it and ends that player’s turn. A skipped turn consumes the ace’s skip effect. In either case, the top card still determines the current suit/rank, and a queen declaration remains forbidden on an ace, seven, or K♠. This restriction concerns the declared queen: an actual queen may still be played face down as any legal non-queen declaration.
 
 If the **starting card is a queen**, there is **no suit or rank restriction until another card is played**. This freedom applies to **both players on their turns**, for as many turns as the queen remains on top. Its printed suit does not restrict play. Drawing ends the turn as usual but **does not remove this freedom**; drawing is allowed only while cards can be drawn. The next played card is accepted or challenged normally and determines how play continues.
 
-Starting aces, sevens and K♠ have **no active skip or draw effect**. Until the first card is played, use normal suit/rank matching (or a queen), even after intervening draws: **A♥ → 8♥** and **7♠ → 8♠** are legal. An opening seven or K♠ still contributes its two or four cards **if the first played declaration is a legal seven or K♠**. For example, opening **7♥ → 7♠** creates a **four-card** penalty; a challenge loser draws **six**. Opening **7♠ → K♠** or **K♠ → 7♠** creates six. An ordinary reply or queen discards this opening contribution. This exception ends with the first played card and is never restored by recycling.
+Starting aces, sevens and K♠ have **no active skip or draw effect**. Until the first card is played, use normal suit/rank matching, even after intervening draws: **A♥ → 8♥** and **7♠ → 8♠** are legal, but a queen declaration is not. An opening seven or K♠ still contributes its two or four cards **if the first played declaration is a legal seven or K♠**. For example, opening **7♥ → 7♠** creates a **four-card** penalty; a challenge loser draws **six**. Opening **7♠ → K♠** or **K♠ → 7♠** creates six. A legal non-penalty reply discards this opening contribution. This exception ends with the first played card and is never restored by recycling.
 
 ## Trusting or challenging
 
@@ -46,7 +46,7 @@ In either case:
 - The loser draws **the entire accumulated draw penalty, including the challenged declaration’s contribution, plus two extra cards**. Use the declared card’s contribution, not the revealed card’s actual effect.
 - **All pending draw and skip effects are cleared.** The revealed card does not activate a new special effect.
 - The **challenge winner takes the next turn**. If their hand is empty, they win immediately.
-- The revealed card stays on top; its **actual suit/rank** determines continued play.
+- The revealed card stays on top; its **actual suit/rank** determines continued play. A revealed ace, seven, or K♠ still forbids a queen declaration, despite having no active effect.
 - If the revealed card is a **queen**, discard any previously announced continuing suit and ignore its printed suit. The same unrestricted-play rule as for a starting queen applies: **both players may declare any card on their turns until another card is played, even after intervening draws**. The challenge winner takes the next turn; if they draw, the opponent still has this freedom. Drawing is allowed only while cards can be drawn.
 
 With no earlier accumulated penalty:
@@ -90,13 +90,13 @@ You declare a seven; your opponent accepts and declares another seven. You chall
 
 ### K♠ has specific counters
 
-After a declared **7♠**, the opponent may counter with **K♠**, bringing the penalty to **six cards**. The next stacking counter can only be **7♠**, bringing it to eight. A queen of any suit can instead cancel the entire six-card penalty; challenging that queen costs the loser two cards. **7♥** cannot counter K♠, and K♠ cannot counter 7♥.
+After a declared **7♠**, the opponent may counter with **K♠**, bringing the penalty to **six cards**. The next stacking counter can only be **7♠**, bringing it to eight. No queen declaration can counter either card or cancel the penalty. **7♥** cannot counter K♠, and K♠ cannot counter 7♥.
 
 ### A revealed special card does not activate its effect
 
-You declare **7♠**, but a challenge reveals **A♥**. With no earlier penalty, you draw **four cards** for the false seven declaration. Your opponent takes the next turn, matching **hearts or ace**, or declaring a queen. The revealed ace does **not** force a skip.
+You declare **7♠**, but a challenge reveals **A♥**. With no earlier penalty, you draw **four cards** for the false seven declaration. Your opponent takes the next turn, matching **hearts or ace**, excluding queens. The revealed ace does **not** force a skip.
 
-If you instead declare an ordinary card and a challenge reveals **K♠**, you draw **two cards**, not six. No new four-card penalty starts.
+If you instead declare an ordinary card and a challenge reveals **K♠**, you draw **two cards**, not six. No new four-card penalty starts, but a queen declaration remains forbidden on that K♠.
 
 ### A revealed queen allows any next play
 

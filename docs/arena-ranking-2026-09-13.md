@@ -2,6 +2,10 @@
 
 Stopped cleanly: Sunday, 13 September 2026 at 02:21:06 CEST.
 
+**Historical rules:** this run predates the correction forbidding queen
+declarations on aces, sevens, and K♠. Its results are preserved unchanged; they
+have not been re-evaluated under the corrected rules.
+
 **7,572,168 of 26,633,340 games completed (28.43%).** All 1,333 baseline configurations participated. The requested target remains 30 games per unordered pair; this is a saved partial ranking.
 
 Four complete round-robin cycles finished: every pair played at least 8 games. 234,972 pairs played 10 games; the other 652,806 pairs played 8. Paired games exchange seats. Bots have 11,358–11,362 games each.

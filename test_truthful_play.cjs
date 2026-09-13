@@ -21,7 +21,7 @@ vm.runInContext(`(async () => {
     { id: 4, type: 'play', actual: 'QC', declared: 'QC', chosen_suit: 'D' },
   ];
   const turn = { version: 2, phase: 'turn', turn: 0, winner: null, hands: [['7H', 'KC', 'QC'], ['8S']],
-    legal_moves: legal, history: [], top: '7S', draw_penalty: 2, skip_pending: false, chosen_suit: null };
+    legal_moves: legal, history: [], top: '8H', draw_penalty: 0, skip_pending: false, chosen_suit: null };
   const shortcut = () => panel().match(/<button id="play-truthful"[^>]*>/)[0];
   receive(turn);
   assert.equal(actual, null);
@@ -103,7 +103,7 @@ vm.runInContext(`(async () => {
   busy = true;
   assert.match(panel().match(/<button id="move-accept"[^>]*>/)[0], /disabled/);
   busy = false;
-  receive({ ...response, skip_pending: true, legal_moves: [
+  receive({ ...response, top: 'AH', skip_pending: true, legal_moves: [
     { id: 0, type: 'accept' }, { id: 5, type: 'challenge' },
     { id: 6, type: 'play', actual: 'QC', declared: 'AH', chosen_suit: null },
   ] });

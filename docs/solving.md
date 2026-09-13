@@ -4,6 +4,12 @@ Research and experiments: 13 September 2026. **The full game is not solved.**
 The objective is a strategy with low exploitability against any legal opponent,
 not a strategy specialized to the existing baseline roster.
 
+All measured game results below predate the correction forbidding queen
+declarations on aces, sevens, and K♠, regardless of active effects. They remain
+historical evidence for the earlier rule set. Current source uses the corrected
+rules, so game-tree sizes, seeded results, trained policies, and performance
+ratings must be measured again before being claimed for the current game.
+
 ## What comparable research establishes
 
 | Work | Result and relevance | What it does not establish |
@@ -99,7 +105,7 @@ not Elo or an unqualified win-rate percentage.
 - [cfr.rs](../src/engines/cfr.rs): simultaneous tabular CFR, own-reach-weighted
   average strategies, perfect-recall/tree validation, and exhaustive best responses.
 - [solving.rs](../src/engines/solving.rs): converts supplied weighted hidden worlds
-  into a finite tree using every generated legal action and the unchanged core
+  into a finite tree using every generated legal action and the core
   transitions. Separate private/public histories define information sets. No
   baseline tactic filters the actions.
 - [solve.rs](../examples/solve.rs): reproducible endgame experiment and flushed
@@ -115,9 +121,10 @@ not Elo or an unqualified win-rate percentage.
   player to `1e-12`. Other checks cover unequal chance weights, perfect recall,
   hidden actions, reveals, and information sets occurring at different depths.
 
-Final validation: all 56 tests pass with `cargo test --release --all-targets`;
-formatting and Clippy with warnings denied pass. The frozen rule-engine reference
-checks still pass. No UI, core rule, baseline policy, or saved arena rating changed.
+At the end of that research implementation, all 56 tests passed with
+`cargo test --release --all-targets`; formatting and Clippy with warnings denied
+passed. The then-current frozen rule-engine reference checks passed. That work
+did not change the UI, core rules, baseline policies, or saved arena ratings.
 
 The example defines four equally probable hidden scenarios: player zero has 9H
 or 8D, player one has 7H or 9S. The public top is 9C, the deck is empty, and the
@@ -171,9 +178,10 @@ The independent mathematical review checked these particular estimators.
 `RulesGame` runs the core transitions on demand, without expanding a tree. Fixed
 scenarios reproduce the exact endgame model. Fresh-deal mode samples the original
 deal directly and uses fresh shuffle randomness when the pile is recycled. The
-only core-file change exposes its existing dealer within the crate; move lists,
-transitions and dealing behavior are unchanged. Both modes retain ordered private
-hands, own actual plays, public declarations/reveals, and the complete sequence
+research implementation's only core-file change exposed its existing dealer
+within the crate; it did not change the then-current move lists, transitions,
+or dealing behavior. Both modes retain ordered private hands, own actual plays,
+public declarations/reveals, and the complete sequence
 of observations. Recycling clears card-location certainty, but retains history.
 
 All runs below use zero utility for unresolved cutoffs. Each endgame policy was
@@ -336,7 +344,8 @@ neutral definition of game length. Degenerate samples report no normal interval.
 ## Reproduce and extend
 
 All commands run from the repository root; all implementation and training here
-are Rust. The UI and original move generator are unchanged.
+are Rust. Current commands use the corrected rule engine. To reproduce the
+historical results exactly, use the original saved executable and its rule set.
 
 ```sh
 cargo run --release --example solve -- --depth 4 --iterations 5000 --report-every 500
@@ -345,8 +354,8 @@ cargo run --release --example solve -- --depth 4 --iterations 5000 --cutoff-util
 cargo run --release --example train -- --run runs/my-mccfr --iterations 100000 --checkpoint-every 10000
 # Resume to a larger TOTAL target, preserving the model options:
 cargo run --release --example train -- --run runs/my-mccfr --iterations 200000 --checkpoint-every 10000
-cargo run --release --example train -- --model fresh --depth 32 --iterations 1000 --checkpoint-every 250 --max-information-sets 40000 --exact-node-cap 0
-cargo run --release --example evaluate_trained -- --run runs/20260913-mccfr-final-fresh-d32-s42 --output runs/my-heldout-evaluation
+cargo run --release --example train -- --run runs/my-fresh-mccfr --model fresh --depth 32 --iterations 1000 --checkpoint-every 250 --max-information-sets 40000 --exact-node-cap 0
+cargo run --release --example evaluate_trained -- --run runs/my-fresh-mccfr --output runs/my-heldout-evaluation
 cargo run --release --example engine_lab -- --bot tactical --opponents all --deals 10000 --seed 1000000 --workers 8
 cargo run --release --example engine_lab -- --bot search --opponents tactical --deals 1000 --seed 2000000 --workers 8 --samples 8 --horizon 40
 cargo test --release --all-targets

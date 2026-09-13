@@ -20,22 +20,24 @@ explicit in the function API.
 3. **Accepting an ace consumes its skip immediately.** To counter an ace, submit
    another ace directly in response phase. Explicit acceptance gives the turn
    back to the ace's player and confirms their victory if their hand is empty.
-   A starting ace has no skip effect: normal matching declarations or a queen
-   are legal, and drawing takes one card.
+   A starting ace has no skip effect: normal matching declarations other than
+   queens are legal, and drawing takes one card.
    Accepting a seven or K♠ with cards in hand leaves the choice to counter or draw.
 
-4. **A queen cancels pending draw penalties, but cannot counter an ace.** Any
-   declared queen and continuing suit can counter a seven or K♠, clearing the
-   accumulated draw penalty. Once an ace skip is consumed or cleared by a
-   challenge, queens are legal again. If a queen is challenged, the loser draws
-   only two cards. A queen does not return an already empty opponent; accepting
-   it confirms that opponent's win.
+4. **A queen cannot be declared on any ace, seven, or K♠.** This depends on the
+   effective top identity, not whether its effect is pending: it also applies to
+   starting cards, revealed cards, consumed ace skips, and paid draw penalties.
+   Queens remain wildcard declarations on other cards and require a continuing
+   suit. They never cancel a draw penalty. An actual queen can still bluff a
+   legal non-queen declaration. A queen does not return an already empty
+   opponent; accepting a legal queen confirms that opponent's win.
 
 5. **Opening special cards are inactive, with a conditional penalty contribution.**
    `opening_card` stays true until the first `Move::Play`, including across draws.
-   Opening aces, sevens and K♠ allow normal matching play without owing a skip or
-   penalty. If that first declaration is a seven or K♠, add the starting card’s
-   two/four-card contribution; otherwise discard it. Opening 7♥ → 7♠ owes four,
+   Opening aces, sevens and K♠ allow normal matching play, excluding queens,
+   without owing a skip or penalty. If that first declaration is a seven or K♠,
+   add the starting card’s two/four-card contribution; otherwise discard it.
+   Opening 7♥ → 7♠ owes four,
    or six to a challenge loser. Later played specials follow normal effect rules;
    a recycled one-card pile never restores opening status.
 

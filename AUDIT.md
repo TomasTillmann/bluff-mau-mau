@@ -1,6 +1,7 @@
 # Backend verification
 
-The backend and its engine/arena tests are Rust; the unchanged frontend checks\nuse Node.js and Playwright. The authoritative rules are
+The backend and its engine/arena tests are Rust; frontend checks use Node.js and
+Playwright. The authoritative rules are
 [RULES.md](RULES.md), with transition conventions in
 [clarification-rules.md](clarification-rules.md). Run the current checks from the
 repository root:
@@ -11,6 +12,11 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo run --release --example benchmark -- 120
 ```
+
+The migration measurements and parity counts below are historical. They predate
+the correction forbidding queen declarations on aces, sevens, and K♠, including
+when those cards have no active effect. They do not certify the old queen rule;
+current regression tests enforce the corrected [rules](RULES.md).
 
 ## Frozen behavioral reference
 
@@ -37,6 +43,18 @@ The original migration's nine parity tests passed on their first execution:
 - 45 complete matches: identical final state, knowledge, and action counters.
 - Debug-game traces: identical JSON views, move IDs, history, and explanations.
 - Paired evaluation statistics and seeded arena schedules.
+
+After the queen correction, the unchanged fixture is used only where its
+expectations agree with the current rules: 140 initial deals, 1,900 positions,
+49,948 transitions, three full 1,333-bot policy grids, and 27 seeded schedules.
+Trace and HTTP comparisons retain exact prefixes before the first changed
+decision. These exclusions are explicit and their coverage counts are checked;
+the old queen behavior is not a current test oracle. Current Rust regressions
+cover queen restrictions and legal alternatives. Complete matches are checked
+against public `play` replay with independent counters and full knowledge
+comparison; paired evaluation totals are checked against separately aggregated
+current matches.
+No reference data was regenerated and no Python runtime or source was restored.
 
 This is extensive behavioral evidence, not an exhaustive proof over every possible
 manually constructed state. Rust-owned values replace Python's object-type checks;

@@ -215,7 +215,9 @@ mod tests {
     }
     #[test]
     fn queen_direct_response_uses_public_declaration_and_fixed_perspective() {
-        let before = snapshot();
+        let mut before = snapshot();
+        before["top"] = json!("8H");
+        before["draw_penalty"] = json!(0);
         let mut after = before.clone();
         after["hand_counts"] = json!([1, 1]);
         after["top"] = json!("QS");
@@ -224,7 +226,7 @@ mod tests {
         assert_eq!(result["title"], "You declared queen of spades.");
         assert_eq!(
             result["detail"],
-            "Accepted 7 of hearts and played face down. Continue with clubs, if accepted."
+            "Accepted 8 of hearts and played face down. Continue with clubs, if accepted."
         );
     }
 }

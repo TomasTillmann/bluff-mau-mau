@@ -1,4 +1,4 @@
-//! Pure two-player Bluff Mau-Mau rules. Ordering matches the original rule engine.
+//! Pure two-player Bluff Mau-Mau rules with stable card and action ordering.
 use crate::rng::{PythonRandom, RngState};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{fmt, str::FromStr};
@@ -307,14 +307,18 @@ pub fn declarations(
     CARDS
         .into_iter()
         .filter(|&card| {
+            // The effective card blocks a queen even after its effect is resolved.
+            if card.rank() == 5 && (matches!(top.rank(), 0 | 7) || top == king_spades) {
+                return false;
+            }
             if skip_pending {
                 return card.rank() == 7;
             }
             if draw_penalty != 0 {
                 return if top == king_spades {
-                    card.rank() == 5 || card == seven_spades
+                    card == seven_spades
                 } else {
-                    matches!(card.rank(), 0 | 5) || (top == seven_spades && card == king_spades)
+                    card.rank() == 0 || (top == seven_spades && card == king_spades)
                 };
             }
             if top.rank() == 5 && chosen_suit.is_none() {

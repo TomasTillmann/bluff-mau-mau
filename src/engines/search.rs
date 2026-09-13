@@ -6,7 +6,10 @@ use super::{
     tactical::Tactical,
 };
 use crate::{
-    game::{CARDS, Card, GameState, Move, Phase, apply_generated, contribution, generated_moves},
+    game::{
+        CARDS, Card, GameState, Move, Phase, apply_generated, contribution, declarations,
+        generated_moves,
+    },
     rng::PythonRandom,
 };
 
@@ -161,15 +164,11 @@ fn shortlist(o: &Observation, moves: &[Move]) -> Vec<Move> {
                     result.push(action);
                     continue;
                 }
+                let followups = declarations(declared_card, chosen_suit, 0, false);
                 let continuation = o
                     .hand
                     .iter()
-                    .filter(|&&c| {
-                        c != actual_card
-                            && (c.rank() == 5
-                                || c.rank() == declared_card.rank()
-                                || c.suit() == chosen_suit.unwrap_or(declared_card.suit()))
-                    })
+                    .filter(|&&c| c != actual_card && followups.contains(&c))
                     .count();
                 let score = 0.2 * continuation as f64
                     + if declared_card.rank() == 7 { 2.0 } else { 0.0 }
@@ -337,6 +336,43 @@ impl Bot for BeliefSearch {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effect_declarations_do_not_get_a_queen_followup_bonus() {
+        let card = |text: &str| Card::parse(text).unwrap();
+        let observation = Observation {
+            player: 0,
+            hand: ["QH", "QD", "QC", "QS", "8H", "7C", "8C", "10C", "JC", "KC"]
+                .map(card)
+                .to_vec(),
+            opponent_count: 3,
+            top: card("AC"),
+            chosen_suit: None,
+            phase: Phase::Turn,
+            draw_penalty: 0,
+            skip_pending: false,
+            provisional_winner: None,
+            deck_count: 18,
+            pile_count: 1,
+            known_pile_cards: card_mask(card("AC")),
+            opening_card: true,
+        };
+        let ace = Move::Play {
+            actual_card: card("QC"),
+            declared_card: card("AH"),
+            chosen_suit: None,
+        };
+        let ordinary = Move::Play {
+            actual_card: card("8H"),
+            declared_card: card("9C"),
+            chosen_suit: None,
+        };
+        // The ordinary declaration keeps nine truthful follow-ups; the ace keeps one.
+        assert_eq!(
+            shortlist(&observation, &[ace, ordinary]),
+            vec![ordinary, ace]
+        );
+    }
 
     #[test]
     fn sampled_worlds_preserve_observation_and_all_cards() {

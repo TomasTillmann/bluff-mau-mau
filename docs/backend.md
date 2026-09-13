@@ -45,8 +45,9 @@ fn main() -> Result<(), String> {
 
 `new_game` accepts an `i64` seed and dealer 0 or 1. `new_game_u64` accepts the full
 unsigned range; `new_game_decimal` accepts an arbitrarily large signed decimal
-integer. The initial shuffle, dealing order, ordered legal moves, random bot
-choices, and recycling shuffle retain the established deterministic behavior.
+integer. The initial shuffle, dealing order, and recycling shuffle retain the
+established deterministic behavior. Legal moves are ordered deterministically;
+rule corrections can change that list and subsequent seeded bot choices.
 Serialized state contains the complete RNG state, including its Gaussian cache.
 The Rust `PythonRandom` type preserves the original CPython integer-seeded MT19937
 algorithm and version 2/3 state encoding; it does not invoke a Python runtime.
@@ -56,7 +57,9 @@ bluffs that a player can prove false. `play` rejects illegal actions and returns
 a new state without modifying its input. State collections are owned Rust values;
 clones and branches cannot mutate one another. Players and counts use `usize`;
 `draw_penalty` uses `u32`. Reachable positions fit these types; extreme manually
-constructed penalties return an error on arithmetic overflow.
+constructed penalties return an error on arithmetic overflow. A declared queen
+is forbidden whenever the effective top is an ace, any seven, or K♠, regardless
+of pending effects; an actual queen may still bluff a legal non-queen declaration.
 
 The match runner validates its entry state and each chosen action, then uses a
 crate-private in-place transition. This avoids repeating complete state validation
@@ -99,7 +102,8 @@ Catalog rows contain `id`, `name`, `family`, `elo`, `elo_kind`, `games`, `wins`,
 [the saved Markdown ranking](arena-ranking-2026-09-13.md). `Tactical[C0]` and
 `BeliefSearch[S8-H40-conservative]` use `elo_kind: "performance"`, displayed as
 “test Elo”, from their separate 1,000-game top-ten benchmarks. These rating sources
-are distinct and remain fixed during browser play.
+are distinct and remain fixed during browser play. Both predate the queen rule
+correction; they are historical records, not evaluations under the current rules.
 
 Only engines implementing the snapshot `Bot` API appear in this catalog.
 Full-history trained CFR policies use the [solver/evaluation API](solving.md) and

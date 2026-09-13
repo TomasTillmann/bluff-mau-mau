@@ -112,7 +112,7 @@ function showBots(focusSearch = false) {
       <ul id="bot-results" class="bot-results" aria-label="Available opponents"></ul>
       <button id="more-bots" type="button" class="bp-button bp-button--secondary bot-more" hidden>Show more</button>
     </div>
-    <details class="bot-rating-note"><summary>About the ratings and strategies</summary><p>Arena Elo is from the saved baseline tournament; test Elo is from a separate top-ten benchmark. Records: 13 September 2026. Your games do not change these ratings.</p><p>MixedGreedy: B is the bluff chance with a truthful play available; N is the bluff chance without one; C is the chance of calling an uncertain bluff. Shared obvious moves take priority.</p></details>
+    <details class="bot-rating-note"><summary>About the ratings and strategies</summary><p>Arena Elo is from the saved baseline tournament; test Elo is from a separate top-ten benchmark. Records: 13 September 2026, before the queen-on-effect-card correction. Your games do not change these historical ratings.</p><p>MixedGreedy: B is the bluff chance with a truthful play available; N is the bluff chance without one; C is the chance of calling an uncertain bluff. Shared obvious moves take priority.</p></details>
   </section>`;
   document.querySelector('#bot-search').value = botQuery;
   renderBotResults();
@@ -227,8 +227,8 @@ function playReason() {
   const matching = state.legal_moves.filter(move => move.type === 'play' && move.actual === actual && move.declared === declared);
   if (!matching.length) {
     if (state.skip_pending) return state.phase === 'response' ? 'Counter with another ace, or accept the declaration to skip this turn.' : 'Counter with another ace, or click the draw pile to pass.';
-    if (state.draw_penalty) return state.top === 'KS' ? 'Counter this king with 7 of spades or any queen.' : 'Use a seven, a queen, or king of spades on 7 of spades.';
-    return `Match ${state.chosen_suit ? suits[state.chosen_suit] : `${suits[suit(state.top)]} or ${rankNames[rank(state.top)] || rank(state.top)}`}, or declare a queen.`;
+    if (state.draw_penalty) return state.top === 'KS' ? 'Counter this king with 7 of spades.' : 'Use a seven, or king of spades on 7 of spades.';
+    return `Match ${state.chosen_suit ? suits[state.chosen_suit] : `${suits[suit(state.top)]} or ${rankNames[rank(state.top)] || rank(state.top)}`}${state.legal_moves.some(move => move.type === 'play' && rank(move.declared) === 'Q') ? ', or declare a queen.' : '.'}`;
   }
   if (rank(declared) === 'Q' && !chosenSuit) return 'Choose the continuing suit before playing the queen.';
   return finalPlay() ? '' : 'This combination is not available in the current turn.';

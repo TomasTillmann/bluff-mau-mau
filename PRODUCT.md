@@ -15,7 +15,8 @@ configurations, Tactical, and BeliefSearch. Fuzzy search covers names, strategie
 and parameter labels such as `B0 N100 C40`. Results show ratings, win rates, and
 W/D/L records. Arena Elo comes from the frozen baseline tournament; test Elo comes
 from a separate top-ten benchmark. Both use records saved on 13 September 2026;
-playing in the browser never changes those ratings.
+playing in the browser never changes those ratings. These are historical results
+from before the correction forbidding queens on aces, sevens, and K♠.
 
 Selecting an opponent starts a new game with the human in the bottom seat
 (player 0), moving first. The opponent's cards remain face down, and the server
@@ -41,6 +42,10 @@ The “Play as itself” shortcut below the declaration grid uses the selected h
 card as its declaration. Start without a selected card, and enable the shortcut
 only for an exact engine-legal move; queens require an explicitly chosen continuing
 suit. Grid selections remain independent and keep the existing bluff action.
+
+Queen declarations are disabled on any ace, seven, or K♠, even when it is a
+starting or revealed card, its skip was consumed, or its draw penalty was paid.
+An actual queen remains usable as a legal non-queen bluff declaration.
 
 ## Constraints
 Use the engine’s legal moves as the source of truth. Every actual card can be used for any declaration returned by `move_generator`; never filter bluffs using card identity or location. All declaration tiles remain visible; illegal declarations are dimmed and disabled. Use native HTML/CSS/JavaScript and the Rust HTTP server. English labels and desktop-first composition with usable narrow layouts are current choices. Normal play exposes only the human hand and legal actions, public state, and the opponent's card count. The actual cards behind bot declarations stay hidden until a challenge reveals them. This is a local game with one shared table per mode, without multiplayer sessions. Use a small, fast Playwright sanity suite in tests/integration for pointer actions, layout stability, and card access; keep its scope in that folder’s AGENTS.md. Continue visual verification in Chrome through Playwright CLI and detailed logic checks in Rust/Node.

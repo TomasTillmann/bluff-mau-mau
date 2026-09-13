@@ -31,7 +31,9 @@ The chooser distinguishes frozen **arena Elo** from the baseline tournament and
 **test Elo** from the stronger bots' separate top-ten benchmark. Ratings, win rates,
 and W/D/L records are dated **13 September 2026** and never change through browser
 play. See the [saved ranking](docs/arena-ranking-2026-09-13.md) and
-[benchmark results](docs/solving.md).
+[benchmark results](docs/solving.md). These historical records predate the rule
+correction forbidding queen declarations on aces, sevens, and K♠; they have not
+been rerun under the corrected rules.
 
 Open <http://127.0.0.1:8767/?debug=1> for the separate debug table, with both hands
 visible and both players controlled manually. The server holds one shared local
@@ -78,8 +80,9 @@ cargo run --release --example benchmark -- 120
 ```
 
 The backend, tests, and benchmark run entirely in Rust. Frozen reference data
-checks complete ordered move lists, state transitions and random state, every
-baseline configuration, complete matches, and the debug and human-play HTTP APIs.
+checks unaffected ordered move lists, transitions, random state, and baseline
+choices; obsolete queen-rule branches are explicitly excluded. Rust regressions
+check the corrected rules, complete match replay, and debug/human-play HTTP APIs.
 
 - [Backend API and layout](docs/backend.md)
 - [Baseline behavior and private observations](docs/baseline-engines.md)

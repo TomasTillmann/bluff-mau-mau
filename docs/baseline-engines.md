@@ -18,6 +18,10 @@ return one of those actions; an empty list is an error. Decisions use only the
 provided observation, legal moves, and RNG. The generic interface and match runner
 do not impose baseline tactics on custom engines.
 
+The legal list excludes declared queens whenever the effective top is an ace,
+any seven, or K♠, including after its effect has cleared. This applies to every
+bot; a physical queen may still bluff a legal non-queen declaration.
+
 `Baseline::RandomLegal`, `Baseline::HonestFirst`, and
 `Baseline::mixed(bluff, no_truth_bluff, challenge)` implement the interface.
 The mixed constructor accepts integer percentages from 0 through 100; its three

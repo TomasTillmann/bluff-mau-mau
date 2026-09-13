@@ -238,18 +238,28 @@ test('reload clears play state, selections and finished debug presets', async ({
   }
   await load(page);
   await pick(page, '10H');
-  await page.locator('#declare-7C').click();
+  await page.locator('#declare-8C').click();
   await page.locator('#play-card').click();
   await ready(page);
   await pick(page, 'JC', 1);
   await page.locator('#declare-QH').click();
   await page.locator('#suit-S').click();
   const played = await (await page.request.get('/api/state')).json();
-  expect(played.draw_penalty).toBe(2);
+  expect(played.draw_penalty).toBe(0);
   expect(played.history.length).toBeGreaterThan(1);
   expect(played.move_explain).not.toBeNull();
   await expect(page.locator('#declare-QH')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#suit-S')).toHaveAttribute('aria-pressed', 'true');
+  await reloadFresh();
+  // A pending penalty and queen suit selection are separate legal states.
+  await pick(page, '10H');
+  await page.locator('#declare-7C').click();
+  await page.locator('#play-card').click();
+  await ready(page);
+  await pick(page, 'JC', 1);
+  await page.locator('#declare-7D').click();
+  expect((await (await page.request.get('/api/state')).json()).draw_penalty).toBe(2);
+  await expect(page.locator('#declare-7D')).toHaveAttribute('aria-pressed', 'true');
   await reloadFresh();
   await load(page, { count: 31 }, '/api/debug/max-hand');
   await expect(page.locator('.game-winner')).toBeVisible();
@@ -294,8 +304,11 @@ test('response selections stay local; ace counters, explicit acceptance and draw
   expect(skipped.move_explain.detail).toContain('skipped');
   await expect(page.locator('#move-accept')).toHaveCount(0);
   await pick(page, 'QH', 1);
-  await page.locator('#suit-D').click();
-  await page.locator('#play-truthful').click();
+  await expect(page.locator('#play-truthful')).toBeDisabled();
+  await expect(page.locator('.game-suit')).toHaveCount(0);
+  for (const suit of ['H', 'D', 'C', 'S']) await expect(page.locator(`#declare-Q${suit}`)).toBeDisabled();
+  await page.locator('#declare-8S').click();
+  await page.locator('#play-card').click();
   await ready(page);
   const beforeDraw = await (await page.request.get('/api/state')).json();
   await page.locator('#pile-draw').click();
@@ -304,7 +317,7 @@ test('response selections stay local; ace counters, explicit acceptance and draw
   expect(drawn.version).toBe(beforeDraw.version + 1);
   expect(drawn.hands[0]).toHaveLength(beforeDraw.hands[0].length + 1);
   expect(drawn.move_explain.kind).toBe('draw');
-  expect(drawn.move_explain.detail).toContain('Accepted queen of hearts');
+  expect(drawn.move_explain.detail).toContain('Accepted 8 of spades');
   await expect(page.locator('#pile-challenge')).toHaveCount(0);
 
   await load(page);

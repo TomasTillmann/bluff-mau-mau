@@ -22,6 +22,7 @@ use std::{
 #[derive(Serialize)]
 struct Model {
     source_sha256: String,
+    rules_sha256: String,
     runtime: String,
     model: String,
     depth: usize,
@@ -86,6 +87,7 @@ impl Evaluation {
 fn run() -> Result<(), String> {
     let mut model = Model {
         source_sha256: source_hash(),
+        rules_sha256: format!("{:x}", Sha256::digest(include_bytes!("../src/game.rs"))),
         runtime: format!(
             "{};{};{};debug={}",
             env!("RUSTC_VERSION"),
@@ -152,8 +154,8 @@ fn run() -> Result<(), String> {
     if let Some(bytes) = store.load()? {
         trainer = Trainer::from_bytes(&bytes)?;
     } else {
-        // Human-readable configuration is informational; the checksummed
-        // checkpoint itself binds the exact model and compiled source identity.
+        // Evaluation checks the rules fingerprint before opening the checkpoint;
+        // the checksummed checkpoint binds this exact configuration and source.
         fs::write(directory.join("config.json"), &identity).map_err(|e| e.to_string())?;
         store.save(&trainer.to_bytes()?)?;
     }

@@ -275,15 +275,26 @@ fn run() -> Result<(), String> {
         }
     }
     let output = output.ok_or("--output DIRECTORY is required")?;
+    evaluate(&checkpoint, &output)
+}
+
+fn evaluate(checkpoint: &Path, output: &Path) -> Result<(), String> {
     let identity =
         fs::read_to_string(checkpoint.join("config.json")).map_err(|error| error.to_string())?;
     let training_model: serde_json::Value =
         serde_json::from_str(&identity).map_err(|error| error.to_string())?;
-    let store = RunStore::open(&checkpoint, &identity)?;
+    let rules_sha256 = format!("{:x}", Sha256::digest(include_bytes!("../src/game.rs")));
+    if training_model["rules_sha256"].as_str() != Some(rules_sha256.as_str()) {
+        return Err(
+            "Checkpoint rules are missing or incompatible with the compiled rules; historical checkpoints require their original revision. Train a new run for these rules."
+                .into(),
+        );
+    }
+    let store = RunStore::open(checkpoint, &identity)?;
     let bytes = store.load()?.ok_or("No trained checkpoint found")?;
     let checkpoint_sha256 = format!("{:x}", Sha256::digest(&bytes));
     let trainer = Trainer::from_bytes(&bytes)?;
-    fs::create_dir_all(&output).map_err(|error| error.to_string())?;
+    fs::create_dir_all(output).map_err(|error| error.to_string())?;
     let mut records = new_file(&output.join("mccfr-games.jsonl"))?;
     let config = json!({"type":"config","candidate":"MCCFR average policy","checkpoint":checkpoint,
         "checkpoint_payload_sha256":checkpoint_sha256,"training_model":training_model,
@@ -391,6 +402,45 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn incompatible_rules_are_rejected_before_opening_checkpoint_or_output() {
+        let directory = std::env::temp_dir().join(format!(
+            "bluff-evaluate-rules-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&directory).unwrap();
+        let output = directory.join("evaluation");
+        let checkpoint = directory.join("checkpoint.bin");
+        fs::write(&checkpoint, b"must not be opened").unwrap();
+        for config in [json!({}), json!({"rules_sha256":"old queen rules"})] {
+            fs::write(directory.join("config.json"), config.to_string()).unwrap();
+            let error = evaluate(&directory, &output).unwrap_err();
+            assert!(error.contains("rules"), "unexpected error: {error}");
+            assert!(!directory.join(".writer.lock").exists());
+            assert!(!output.exists());
+            assert_eq!(fs::read(&checkpoint).unwrap(), b"must not be opened");
+        }
+        fs::write(
+            directory.join("config.json"),
+            json!({"rules_sha256":format!("{:x}", Sha256::digest(include_bytes!("../src/game.rs")))})
+                .to_string(),
+        )
+        .unwrap();
+        assert!(
+            evaluate(&directory, &output)
+                .unwrap_err()
+                .contains("Checkpoint is truncated or has an invalid format")
+        );
+        assert!(directory.join(".writer.lock").exists());
+        assert!(!output.exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn performance_rating_and_counts_have_known_answers() {
         assert!((performance_elo(&[(1000.0, 100)], 50.0).unwrap() - 1000.0).abs() < 1e-8);
