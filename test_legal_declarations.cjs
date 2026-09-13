@@ -2,11 +2,11 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const context = vm.createContext({ assert, document: {
+const context = vm.createContext({ assert, URLSearchParams, location: { search: '?debug=1' }, document: {
   querySelector: () => ({}),
   addEventListener() {},
 } });
-vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\nrequest\('\/api\/new', \{\}\);\s*$/, ''), context);
+vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\n(?:request\('\/api\/new', \{\}\)|start\(\));\s*$/, ''), context);
 vm.runInContext(`
   const legal = [
     { type: 'play', actual: '8D', declared: '9H', chosen_suit: null },

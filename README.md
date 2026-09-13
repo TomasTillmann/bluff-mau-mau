@@ -1,6 +1,6 @@
 # Bluff Mau-Mau
 
-A two-player bluffing card game with a Rust backend, baseline bots, and a persistent
+A two-player bluffing card game with a Rust backend, playable bots, and a persistent
 parallel arena. [RULES.md](RULES.md) defines the game; [rule clarifications](clarification-rules.md)
 define the transition conventions. The browser UI lives in `web/`, with shared
 components in `design-system/`.
@@ -16,8 +16,24 @@ git submodule update --init free-playing-cards
 ```
 
 Open <http://127.0.0.1:8767/>. `server --port NUMBER` chooses another local port.
-The server serves the existing UI and card assets. This is a local shared debug
-game: both hands are visible, and game state is held only in memory.
+Choose from **1,335 bots**: all 1,333 baseline configurations, `Tactical[C0]`, and
+`BeliefSearch[S8-H40-conservative]`. Fuzzy search accepts names, strategies, and
+parameters such as `B0 N100 C40`. The human sits below the opponent and always
+starts. Opponent cards stay hidden, and bot moves happen automatically. New game
+starts another game against the same bot; Choose opponent returns to the chooser.
+Reloading the page also opens the chooser.
+
+The chooser distinguishes frozen **arena Elo** from the baseline tournament and
+**test Elo** from the stronger bots' separate top-ten benchmark. Ratings, win rates,
+and W/D/L records are dated **13 September 2026** and never change through browser
+play. See the [saved ranking](docs/arena-ranking-2026-09-13.md) and
+[benchmark results](docs/solving.md).
+
+Open <http://127.0.0.1:8767/?debug=1> for the separate debug table, with both hands
+visible and both players controlled manually. The server holds one shared local
+table per mode in memory; tabs in the same mode share that table. Debug games and
+normal games cannot change one another, and neither is saved to disk or browser
+storage. The existing table layout and card assets are preserved.
 
 ## Run the bots
 
@@ -59,7 +75,7 @@ cargo run --release --example benchmark -- 120
 
 The backend, tests, and benchmark run entirely in Rust. Frozen reference data
 checks complete ordered move lists, state transitions and random state, every
-baseline configuration, complete matches, and the debug HTTP bridge.
+baseline configuration, complete matches, and the debug and human-play HTTP APIs.
 
 - [Backend API and layout](docs/backend.md)
 - [Baseline behavior and private observations](docs/baseline-engines.md)

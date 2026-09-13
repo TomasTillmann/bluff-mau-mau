@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const handlers = {};
 const nodes = new Map();
-const context = vm.createContext({ assert, AbortSignal, handlers, document: {
+const context = vm.createContext({ assert, URLSearchParams, location: { search: '?debug=1' }, AbortSignal, handlers, document: {
   activeElement: { id: '' },
   querySelector(selector) {
     if (!nodes.has(selector)) nodes.set(selector, { addEventListener() {}, setAttribute() {} });
@@ -12,7 +12,7 @@ const context = vm.createContext({ assert, AbortSignal, handlers, document: {
   },
   addEventListener(type, handler) { handlers[type] = handler; },
 } });
-vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\nrequest\('\/api\/new', \{\}\);\s*$/, ''), context);
+vm.runInContext(fs.readFileSync('web/app.js', 'utf8').replace(/\n(?:request\('\/api\/new', \{\}\)|start\(\));\s*$/, ''), context);
 vm.runInContext(`(async () => {
   const legal = [
     { id: 1, type: 'play', actual: '7H', declared: '7H', chosen_suit: null },

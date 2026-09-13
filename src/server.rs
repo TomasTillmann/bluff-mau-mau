@@ -1,4 +1,6 @@
-//! Local debug HTTP bridge. Assets remain in the unchanged repository UI folders.
+//! Local HTTP bridge with separate human-versus-bot and debug tables.
+use crate::bot_catalog::{BotCatalog, BotInfo, RATING_DATE};
+use crate::engines::{Bot, PileKnowledge, advance_knowledge, new_knowledge, observe};
 use crate::game::{self, CARDS, Card, GameState, Move, Phase};
 use crate::move_explain::{card_name, explain_move, suit_name};
 use crate::rng::PythonRandom;
@@ -45,6 +47,7 @@ pub fn move_view(index: usize, action: &Move) -> Value {
     }
 }
 
+#[derive(Clone)]
 pub struct DebugGame {
     pub version: u64,
     pub state: GameState,
@@ -331,6 +334,196 @@ impl DebugGame {
         }
     }
 }
+/// A single local human-versus-bot table, isolated from the debug table.
+/// A failed request commits neither cards, history, knowledge nor random state.
+pub struct PlayGame {
+    catalog: Arc<BotCatalog>,
+    current: Option<PlayMatch>,
+    version: u64,
+}
+#[derive(Clone)]
+struct PlayMatch {
+    game: DebugGame,
+    bot: BotInfo,
+    engine: Arc<dyn Bot>,
+    knowledge: PileKnowledge,
+    bot_rng: PythonRandom,
+}
+impl PlayGame {
+    pub fn new() -> Result<Self, HttpError> {
+        Ok(Self::with_catalog(Arc::new(
+            BotCatalog::new().map_err(HttpError::bad)?,
+        )))
+    }
+    fn with_catalog(catalog: Arc<BotCatalog>) -> Self {
+        Self {
+            catalog,
+            current: None,
+            version: 0,
+        }
+    }
+    pub fn start(&mut self, bot_id: &str) -> Result<Value, HttpError> {
+        let (bot, engine) = self
+            .catalog
+            .get(bot_id)
+            .ok_or_else(|| HttpError::bad("Unknown bot_id"))?;
+        let mut game = DebugGame::new()?;
+        game.version = self.version.checked_add(1).ok_or_else(PlayMatch::failed)?;
+        let mut seed = [0; 8];
+        fs::File::open("/dev/urandom")
+            .and_then(|mut file| file.read_exact(&mut seed))
+            .map_err(|_| PlayMatch::failed())?;
+        let next = PlayMatch {
+            knowledge: new_knowledge(game.state.top),
+            game,
+            bot,
+            engine,
+            bot_rng: PythonRandom::seed(u64::from_ne_bytes(seed)),
+        };
+        let view = next.view()?;
+        self.version = next.game.version;
+        self.current = Some(next);
+        Ok(view)
+    }
+    pub fn view(&self) -> Result<Value, HttpError> {
+        self.current.as_ref().ok_or_else(Self::no_match)?.view()
+    }
+    fn no_match() -> HttpError {
+        HttpError {
+            status: 404,
+            message: "Choose an opponent to start a game.".into(),
+        }
+    }
+    pub fn apply_move(&mut self, version: u64, move_id: usize) -> Result<Value, HttpError> {
+        let current = self.current.as_ref().ok_or_else(Self::no_match)?;
+        if version != self.version {
+            return Err(DebugGame::stale());
+        }
+        if current.game.state.winner.is_some() || current.game.state.turn != 0 {
+            return Err(HttpError::bad("It is not your turn"));
+        }
+        let legal = game::move_generator(&current.game.state).map_err(|_| PlayMatch::failed())?;
+        let action = *legal
+            .get(move_id)
+            .ok_or_else(|| HttpError::bad("Unknown move_id for this version"))?;
+        let mut next = current.clone();
+        next.apply(&action)?;
+        next.play_bot()?;
+        let view = next.view()?;
+        self.version = next.game.version;
+        self.current = Some(next);
+        Ok(view)
+    }
+    pub fn apply_payload(&mut self, route: &str, payload: &Value) -> Result<Value, HttpError> {
+        let payload = payload
+            .as_object()
+            .ok_or_else(|| HttpError::bad("JSON body must be an object"))?;
+        match route {
+            "/api/play/new" => {
+                if payload.len() != 1 || !payload.contains_key("bot_id") {
+                    return Err(HttpError::bad("New game requires only bot_id"));
+                }
+                let bot_id = payload["bot_id"]
+                    .as_str()
+                    .ok_or_else(|| HttpError::bad("bot_id must be a string"))?;
+                self.start(bot_id)
+            }
+            "/api/play/move" => {
+                if payload.len() != 2
+                    || !payload.contains_key("version")
+                    || !payload.contains_key("move_id")
+                {
+                    return Err(HttpError::bad("Move requires only version and move_id"));
+                }
+                let (Some(version), Some(move_id)) =
+                    (integer(&payload["version"]), integer(&payload["move_id"]))
+                else {
+                    return Err(HttpError::bad("Version and move_id must be integers"));
+                };
+                let version = version.parse::<u64>().map_err(|_| DebugGame::stale())?;
+                let move_id = move_id
+                    .parse::<usize>()
+                    .map_err(|_| HttpError::bad("Unknown move_id for this version"))?;
+                self.apply_move(version, move_id)
+            }
+            _ => Err(HttpError {
+                status: 404,
+                message: "Not found".into(),
+            }),
+        }
+    }
+}
+impl PlayMatch {
+    fn failed() -> HttpError {
+        // Policy errors may contain private diagnostic data; never send them to the browser.
+        HttpError {
+            status: 500,
+            message: "The game could not advance. Your move was not applied; please try again."
+                .into(),
+        }
+    }
+    fn apply(&mut self, action: &Move) -> Result<(), HttpError> {
+        let before = self.game.state.clone();
+        let public_before = self.game.public_snapshot();
+        let after = game::play(&before, action).map_err(|_| Self::failed())?;
+        self.knowledge = advance_knowledge(&before, action, &after, self.knowledge);
+        self.game.state = after;
+        self.game.version = self.game.version.checked_add(1).ok_or_else(Self::failed)?;
+        self.game.record(&before, action);
+        self.game.move_explain =
+            explain_move(Some(&public_before), &self.game.public_snapshot(), 0);
+        Ok(())
+    }
+    fn play_bot(&mut self) -> Result<(), HttpError> {
+        for _ in 0..64 {
+            if self.game.state.winner.is_some() || self.game.state.turn == 0 {
+                return Ok(());
+            }
+            let legal = game::move_generator(&self.game.state).map_err(|_| Self::failed())?;
+            let observation = observe(&self.game.state, self.knowledge);
+            let action = self
+                .engine
+                .choose(&observation, &legal, &mut self.bot_rng)
+                .map_err(|_| Self::failed())?;
+            if !legal.contains(&action) {
+                return Err(Self::failed());
+            }
+            self.apply(&action)?;
+        }
+        if self.game.state.winner.is_some() || self.game.state.turn == 0 {
+            Ok(())
+        } else {
+            Err(Self::failed())
+        }
+    }
+    fn view(&self) -> Result<Value, HttpError> {
+        let state = &self.game.state;
+        let legal_moves: Vec<_> = if state.turn == 0 && state.winner.is_none() {
+            game::move_generator(state)
+                .map_err(|_| Self::failed())?
+                .iter()
+                .enumerate()
+                .map(|(index, action)| move_view(index, action))
+                .collect()
+        } else {
+            vec![]
+        };
+        // Explicit public projection: do not serialize GameState or a debug view.
+        Ok(json!({
+            "mode":"play", "human_player":0, "bot":self.bot,
+            "version":self.game.version, "phase":state.phase, "turn":state.turn,
+            "hands":[state.hands[0], []],
+            "hand_counts":[state.hands[0].len(), state.hands[1].len()],
+            "top":state.top, "chosen_suit":state.chosen_suit,
+            "draw_penalty":state.draw_penalty, "skip_pending":state.skip_pending,
+            "opening_card":state.opening_card, "provisional_winner":state.provisional_winner,
+            "winner":state.winner, "deck_count":state.deck.len(), "pile_count":state.pile.len(),
+            "top_status":self.game.top_status, "history":self.game.history,
+            "move_explain":self.game.move_explain, "legal_moves":legal_moves,
+        }))
+    }
+}
+
 fn integer(value: &Value) -> Option<String> {
     let Value::Number(number) = value else {
         return None;
@@ -549,6 +742,8 @@ fn static_asset(root: &Path, url: &str) -> Result<(Vec<u8>, &'static str), HttpE
 pub struct DebugServer {
     pub listener: TcpListener,
     pub game: Arc<Mutex<DebugGame>>,
+    pub play: Arc<Mutex<PlayGame>>,
+    catalog: Arc<BotCatalog>,
     pub port: u16,
     root: PathBuf,
 }
@@ -556,10 +751,13 @@ pub fn create_server(port: u16) -> Result<DebugServer, Box<dyn std::error::Error
     let listener = TcpListener::bind(("127.0.0.1", port))?;
     let port = listener.local_addr()?.port();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize()?;
-    // ponytail: one shared debug game; add sessions for independent simultaneous games.
+    let catalog = Arc::new(BotCatalog::new().map_err(HttpError::bad)?);
+    // One local table for each mode; debug requests cannot observe or alter play.
     Ok(DebugServer {
         listener,
         game: Arc::new(Mutex::new(DebugGame::new()?)),
+        play: Arc::new(Mutex::new(PlayGame::with_catalog(Arc::clone(&catalog)))),
+        catalog,
         port,
         root,
     })
@@ -677,13 +875,21 @@ impl DebugServer {
         local_request(&headers, self.port)?;
         let route = request_path(&url);
         let value = if method == "GET" {
-            if unquote(route) == "/api/state" {
-                self.game.lock().map_err(HttpError::bad)?.view()?
-            } else {
-                return static_asset(&self.root, &url);
+            match unquote(route).as_str() {
+                "/api/state" => self.game.lock().map_err(HttpError::bad)?.view()?,
+                "/api/play/state" => self.play.lock().map_err(HttpError::bad)?.view()?,
+                "/api/bots" => json!({"bots":self.catalog.bots,"rating_date":RATING_DATE}),
+                _ => return static_asset(&self.root, &url),
             }
         } else if method == "POST" {
-            if !matches!(route, "/api/new" | "/api/move" | "/api/debug/max-hand") {
+            if !matches!(
+                route,
+                "/api/new"
+                    | "/api/move"
+                    | "/api/debug/max-hand"
+                    | "/api/play/new"
+                    | "/api/play/move"
+            ) {
                 return Err(HttpError {
                     status: 404,
                     message: "Not found".into(),
@@ -699,10 +905,17 @@ impl DebugServer {
                 }
             })?;
             let payload = json_body(&body)?;
-            self.game
-                .lock()
-                .map_err(HttpError::bad)?
-                .apply_payload(route, &payload)?
+            if route.starts_with("/api/play/") {
+                self.play
+                    .lock()
+                    .map_err(HttpError::bad)?
+                    .apply_payload(route, &payload)?
+            } else {
+                self.game
+                    .lock()
+                    .map_err(HttpError::bad)?
+                    .apply_payload(route, &payload)?
+            }
         } else {
             return Err(HttpError {
                 status: 501,

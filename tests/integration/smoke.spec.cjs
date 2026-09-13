@@ -21,7 +21,7 @@ async function load(page, data = { seed: 0 }, endpoint = '/api/new') {
     }), { times: 1 });
   }
   const started = page.waitForResponse(response => response.url().endsWith(endpoint) && response.request().method() === 'POST');
-  await page.goto('/');
+  await page.goto('/?debug=1');
   expect((await started).ok()).toBeTruthy();
   await ready(page);
   await expect(page.locator('#hand-preset')).toHaveCount(0);
@@ -400,4 +400,115 @@ test('opening penalties are optional, but a first seven stacks and a failed chal
     expect(resolved.hands[1]).toHaveLength(pending.hands[1].length + count);
     expect(resolved.move_explain.drawn).toEqual([0, count]);
   }
+});
+
+function privatePlayState(state) {
+  expect(state.mode).toBe('play');
+  expect(state.human_player).toBe(0);
+  expect(state.hands[1]).toEqual([]);
+  expect(state.hand_counts[0]).toBe(state.hands[0].length);
+  for (const hidden of ['deck', 'pile', 'rng_state']) expect(state).not.toHaveProperty(hidden);
+  for (const move of state.legal_moves) {
+    if (move.type === 'play') expect(state.hands[0]).toContain(move.actual);
+  }
+}
+
+async function chooseNormalBot(page, query = 'Tactical') {
+  await page.goto('/');
+  await expect(page.locator('#bot-search')).toBeVisible();
+  await page.locator('#bot-search').fill(query);
+  const row = page.locator('button[data-bot-id]').first();
+  await expect(row).toContainText(query);
+  const id = await row.getAttribute('data-bot-id');
+  const started = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
+  await row.click();
+  const response = await started;
+  expect(response.ok()).toBeTruthy();
+  expect(response.request().postDataJSON().bot_id).toBe(id);
+  const state = await response.json();
+  privatePlayState(state);
+  await ready(page);
+  return state;
+}
+
+test('normal startup finds a bot from a typo and keeps opponent cards private', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#bot-search')).toBeVisible();
+  const catalog = await (await page.request.get('/api/bots')).json();
+  const tactical = catalog.bots.find(bot => bot.id === 'Tactical[C0]');
+  expect(tactical).toBeTruthy();
+  await page.locator('#bot-search').fill('tactcal');
+  const row = page.locator('button[data-bot-id="Tactical[C0]"]');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText(/Elo/i);
+  await expect(row).toContainText(/W.*D.*L|wins|draws|losses/i);
+  const numbers = (await row.innerText()).replace(/[,\s]/g, '');
+  expect(numbers).toContain(String(tactical.wins));
+  await page.locator('#bot-search').fill('zzzxqv-no-such-engine');
+  await expect(page.locator('button[data-bot-id]')).toHaveCount(0);
+  await page.locator('#bot-search').fill('tactcal');
+  const started = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
+  await row.click();
+  const response = await started;
+  expect(response.ok()).toBeTruthy();
+  const state = await response.json();
+  privatePlayState(state);
+  await ready(page);
+  await expect(page.locator('#player-0')).toHaveText('You');
+  await expect(page.locator('#player-1')).toHaveText(tactical.name);
+  await expect(page.getByText(/DEBUG/i)).toHaveCount(0);
+  const backs = page.locator('[data-opponent-card]');
+  await expect(backs).toHaveCount(state.hand_counts[1]);
+  await expect(backs.locator('[data-card]')).toHaveCount(0);
+  for (const image of await backs.locator('img').all()) {
+    await expect(image).not.toHaveAttribute('src', /(?:^|\/)(?:[2-9]|10|[JQKA])[HDCS]\.[a-z]+$/i);
+  }
+});
+
+test('a human move lets the selected bot act and returns a private human turn', async ({ page }) => {
+  const before = await chooseNormalBot(page);
+  expect(before.turn).toBe(0);
+  expect(before.hand_counts).toEqual([5, 5]);
+  await expect(page.locator('#pile-draw')).toBeEnabled();
+  const moved = page.waitForResponse(response => response.url().endsWith('/api/play/move') && response.request().method() === 'POST');
+  await page.locator('#pile-draw').click();
+  const response = await moved;
+  expect(response.ok()).toBeTruthy();
+  const after = await response.json();
+  privatePlayState(after);
+  expect(after.version).toBeGreaterThan(before.version);
+  expect(after.turn).toBe(after.human_player);
+  expect(after.hand_counts[0]).toBe(6);
+  expect(after.hand_counts[1]).toBeLessThan(before.hand_counts[1]);
+  expect(after.history.length).toBeGreaterThan(before.history.length + 1);
+  await ready(page);
+  await expect(page.locator('#player-0')).toHaveText('You');
+  await expect(page.locator('[data-opponent-card]')).toHaveCount(after.hand_counts[1]);
+});
+
+test('normal rematch retains the bot and the chooser can select another on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const first = await chooseNormalBot(page);
+  const rematch = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
+  await page.locator('#new-game').click();
+  const response = await rematch;
+  expect(response.ok()).toBeTruthy();
+  expect(response.request().postDataJSON().bot_id).toBe(first.bot.id);
+  const again = await response.json();
+  expect(again.bot.id).toBe(first.bot.id);
+  expect(again.hand_counts).toEqual([5, 5]);
+  privatePlayState(again);
+  await ready(page);
+  await page.locator('#choose-bot').click();
+  await expect(page.locator('#bot-search')).toBeVisible();
+  await expect(page.locator('#player-0')).not.toBeVisible();
+  await page.locator('#bot-search').fill('Honest');
+  const selected = page.waitForResponse(response => response.url().endsWith('/api/play/new') && response.request().method() === 'POST');
+  await page.locator('button[data-bot-id]').filter({ hasText: 'HonestFirst' }).click();
+  const next = await (await selected).json();
+  expect(next.bot.id).toBe('HonestFirst[B0-N0-C0]');
+  privatePlayState(next);
+  await ready(page);
+  await expect(page.locator('#player-1')).toHaveText(next.bot.name);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

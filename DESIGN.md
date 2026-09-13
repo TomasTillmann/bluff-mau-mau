@@ -2,7 +2,7 @@
 
 A restrained Czech card-club direction: bottle-green cloth, pale score-sheet controls, sharp vermilion actions, and the supplied deck's actual printed artwork. Bricolage Grotesque lettering supplies character; normal labels stay compact and unornamented. No gold trim, fake texture, glow, or dashboard containers.
 
-The approved specimen in `design-system/` supplies the shared components. The playable debug table in `web/` extends them with variable hand sizes, phase-specific actions, and engine-backed validation.
+The approved specimen in `design-system/` supplies the shared components. The playable table in `web/` extends them with variable hand sizes, phase-specific actions, and engine-backed validation. The bot chooser and normal play preserve this table layout and visual language; `?debug=1` retains the separate debug table.
 
 ## Tokens
 
@@ -23,6 +23,19 @@ The source of truth is `design-system/components.css`, using the `bp-` prefix.
 
 Bricolage Grotesque is self-hosted in `design-system/fonts/BricolageGrotesque.ttf` and loaded by the component stylesheet; its OFL license sits beside it. The wordmark uses a compact width setting of 95. Native buttons have visible 3px keyboard outlines. Red uses text, suit shape, or an explicit selected state as a second cue. The selected declaration has a dark fill and white suit; selected cards rise 18px with a crisp outline and keep the normal stacking order so the next card’s corner remains visible. Ordinary hover raises hand cards 14px. Focused cards move above adjacent cards.
 
+## Opponent chooser
+
+The default page uses the same paper surface, Bricolage headings, native controls,
+and vermilion Play buttons. A labeled search field supports fuzzy name and strategy
+matching, exact parameter tokens, and Enter to start the first match. Simple rows
+show the bot name, description, rating, win rate, and W/D/L record; matching quality
+orders search results, then rating. Show more reveals another 40 rows.
+
+Keep arena Elo and test Elo visibly labeled: the former uses the saved baseline
+tournament, the latter a separate top-ten benchmark. The date and fixed nature of
+these records appear below the list. The table header provides New game and Choose
+opponent. Debug mode remains available from the chooser.
+
 ## Source assets
 
 Use complete SVGs under `free-playing-cards/svg cards/card fronts/{suit}/{rank} of {suit}.svg`; face ranks use `jack`, `queen`, `king`, and `ace`. Use `card backs/card back red.svg` for backs. Asset ratio is 5:7 (1500 × 2100). Do not recolor, clip the illustration, rebuild faces with text, or use an SVG as a background. Put it in `<img>` with meaningful alt text, or `alt=""` when the button already names the card.
@@ -34,7 +47,7 @@ Small UI suit marks are consistent SVG shapes with `class="bp-suit"` and `fill="
 | Reference component | Markup / selectors |
 | --- | --- |
 | Header, brand, suit mark | `.bp-topbar` containing `.bp-brand > svg.bp-brand__mark + span.bp-brand__name` and `.bp-topbar__actions` |
-| Debug notice | `.bp-debug > strong` (“DEBUG”) + text “Both hands visible”; an indicator, not a fake switch |
+| Debug notice | Debug mode only: `.bp-debug > strong` (“DEBUG”) + text “Both hands visible”; an indicator, not a fake switch |
 | New game | Native `.bp-button.bp-button--secondary.bp-button--compact` |
 | Player names, counts, acting state | `.bp-hand-label > strong` + `.bp-hand-label__turn` where active + `.bp-hand-label__count` |
 | Full face card | `button.bp-card[type=button][aria-label][aria-pressed] > img`; source SVG; default width 118px |
@@ -58,7 +71,7 @@ Use real headings appropriate to the specimen's hierarchy. Field titles can be h
 
 The shared five-card fan remains a simple specimen. Each playable hand is one continuous shallow arc, with no card groups. CSS container-based spacing overlaps the complete card artwork, exposing each upper-left rank and suit; spacing compresses from 42% to 26% of card width before the rail scrolls. The rail reserves space for rotated edges and native focus scrolling (32px desktop, 24px mobile). Hand buttons keep their fixed arc positions; only their pointer-inert images lift over 260ms with the shared easing. Selection preserves existing hand elements and stacking so neighboring indices remain visible. Keyboard focus can raise a card for visibility, and reduced motion removes transitions. Table height is independent of the action panel so queen controls cannot move the hand.
 
-Player 2 stays above Player 1 in every phase. Both hands remain face up in this debug iteration. Queen continuation choices reuse the existing button and field styles. Play and Play as itself remain present in turn and response phases. Accept declaration shares the Play row while a response is pending, preserving its vertical position. Unavailable declarations are dimmed and disabled using the engine’s legal-move list.
+The opponent stays above the human in every phase. Normal play renders the opponent's hand as non-interactive card backs with its count, bot name, and rating; only the human hand has selectable faces. Debug mode labels the seats Player 2 and Player 1 and shows both hands face up. Queen continuation choices reuse the existing button and field styles. Play and Play as itself remain present in turn and response phases. Accept declaration shares the Play row while a response is pending, preserving its vertical position. Unavailable declarations are dimmed and disabled using the engine’s legal-move list.
 
 In the playable table, the wordmark is visually hidden behind the club mark and the table footer is omitted. Piles show counts with screen-reader names; the declaration plaque shows its card identity, with the active continuing suit beneath a played queen and no status text. A pile becomes a native button only when its action is available. Its top image lifts/tilts over 260ms, with a stationary hit area. The discard animates only when it can challenge. Selection leaves a pending claim open. Playing or drawing implicitly accepts it in one engine move. Accept declaration explicitly accepts a pending claim; accepting an ace skips automatically. The starting card has no forced effect, so the draw pile draws one card. Declaration feedback includes the opening seven or K♠ contribution when the first play starts a draw penalty.
 

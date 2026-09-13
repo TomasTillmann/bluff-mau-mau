@@ -14,7 +14,8 @@ versions. Build and run commands are in the [root README](../README.md).
 - `src/engines/tactical.rs`, `search.rs`: experimental stronger playing policies.
 - `src/engines/cfr.rs`, `solving.rs`: self-play CFR and finite hidden-information game trees.
 - `src/engines/mccfr.rs`, `training_store.rs`: sampled self-play and durable training checkpoints.
-- `src/server.rs`, `src/move_explain.rs`: debug HTTP API and public explanations.
+- `src/server.rs`, `src/move_explain.rs`: human-play/debug HTTP APIs and public explanations.
+- `src/bot_catalog.rs`: runnable snapshot bots and their frozen rating metadata.
 - `src/bin/`: `server`, `baseline`, and `arena` command entry points.
 - `tests/`: Rust integration tests and their frozen fixtures.
 - `examples/benchmark.rs`: reproducible single-thread match benchmark.
@@ -64,14 +65,42 @@ for policy and evaluation APIs.
 
 ## HTTP bridge
 
-The localhost server serves the existing repository assets and preserves:
+The localhost server serves the existing repository assets. `/` opens the bot
+chooser; `/?debug=1` opens the separate debug table. Each mode owns one shared
+in-memory table, without per-browser sessions. Browser play does not write games
+or ratings to disk; tournament persistence belongs to the [arena](arena.md).
 
-- `GET /api/state`
-- `POST /api/new`
-- `POST /api/move`
-- `POST /api/debug/max-hand`
+| Method and route | Contract |
+| --- | --- |
+| `GET /api/bots` | `{bots, rating_date}`; 1,335 runnable bots and frozen records dated `2026-09-13`. |
+| `POST /api/play/new` | Requires only `{bot_id}`; deals a new human-versus-bot game with human player 0 moving first. |
+| `GET /api/play/state` | Returns the current private human view; 404 until a bot has been selected. |
+| `POST /api/play/move` | Requires only `{version, move_id}`; applies the human action and automatic bot actions until the next human decision or winner. |
+| `GET /api/state` | Reads the separate debug game, with both hands visible. |
+| `POST /api/new` | Starts a debug game; supports the existing optional debug seed. |
+| `POST /api/move` | Applies an action to the debug game. |
+| `POST /api/debug/max-hand` | Applies a hand-size preset only to the debug game. |
 
-The HTTP projection retains the UI's `actual`/`declared` move fields, move IDs,
-history, and public move explanations. Both hands are intentionally visible in
-this shared debug game. State lives in memory; tournament persistence belongs to
-the separate [arena](arena.md).
+Normal-play views include `mode: "play"`, `human_player: 0`, bot metadata, public
+state, history, move explanations, and `hands: [human_hand, []]`. `hand_counts`
+provides both counts. Only human legal actions are exposed; play actions retain
+the UI's `actual`/`declared` fields and move IDs. The opponent's actual played
+card is absent from public history until a challenge reveals it. Deck order,
+hidden cards, RNG state, and bot legal actions are never part of this projection.
+
+Move versions increase across actions and new normal games. Stale versions return
+409. Unknown bot IDs, client-supplied normal-game seeds, extra fields, and malformed
+move payloads are rejected. A failed request commits no cards, knowledge, history,
+or random state. Debug operations leave the normal table unchanged.
+
+Catalog rows contain `id`, `name`, `family`, `elo`, `elo_kind`, `games`, `wins`,
+`draws`, `losses`, `score_rate`, and `description`. `score_rate` is
+`(wins + draws / 2) / games`. The 1,333 baselines use `elo_kind: "arena"` from
+[the saved Markdown ranking](arena-ranking-2026-09-13.md). `Tactical[C0]` and
+`BeliefSearch[S8-H40-conservative]` use `elo_kind: "performance"`, displayed as
+“test Elo”, from their separate 1,000-game top-ten benchmarks. These rating sources
+are distinct and remain fixed during browser play.
+
+Only engines implementing the snapshot `Bot` API appear in this catalog.
+Full-history trained CFR policies use the [solver/evaluation API](solving.md) and
+are not exposed through that snapshot interface or the bot chooser.
